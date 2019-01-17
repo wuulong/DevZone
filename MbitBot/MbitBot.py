@@ -1,7 +1,7 @@
 #MbitBot python example
 #Features:
 #   support MbitBot extension board: motor,servo
-#   support RGB-led
+#   support RGB-led, stepper
 #LICENSE: MIT
 #Author: WuLung Hsu, wuulong@gmail.com
 from microbit import *
@@ -118,6 +118,30 @@ def test_all():
     test_motor()
     test_servo()
     test_music()
+    test_stepper()
+
+def test_stepper():
+    #sequence start from M3 , connection: red(A+),blue(A-),green(B+),black(B-)
+    control_pins = [10,12,9,11] #drive sequence A+/B+/A-/B-, pwm9,pwm11,pwm10,pwm12,
+
+    halfstep_seq = [
+        [1,0,0,0],
+        [1,1,0,0],
+        [0,1,0,0],
+        [0,1,1,0],
+        [0,0,1,0],
+        [0,0,1,1],
+        [0,0,0,1],
+        [1,0,0,1]
+    ]
+    step = 200/4
+    for i in range(step):
+        for halfstep in range(8): #4 step
+            for pin in range(4):
+                motor(control_pins[pin],halfstep_seq[halfstep][pin]*4095)
+            sleep(10)
+        sleep(100)
 
 #sample usage
+i2c_init()
 test_all()
