@@ -1,13 +1,15 @@
 #Microbit Radio multi-node bi-direction communication test
 #Features:
 #   multi-nodes communication with re-transmition
-#   current ids show on LEDs
+#   current ids show on LEDs (sid: brighter,did: darker)
 #   random tx rate test
 #   auto select non-used sid
+#   sid collision avoidence
 #Usage:
-#   Button-A: start
+#   Button-A: start, Button-B: change sid
 #   plot format: (tx_rate,rx_rate,ack_loss rate)
 #   rate unit: Hz/s, throughput can estimated by * 32
+#   limitation: max nodes = 20, due to reserved 20 LEDs to show device id
 #LICENSE: MIT
 #Author: WuLung Hsu, wuulong@gmail.com
 #Document: https://paper.dropbox.com/doc/MbitBot--AWWwIfCnEicRuc7gSfO_tmcJAg-DG5SSj5zQhBv1CoAgDtAG
@@ -17,13 +19,15 @@ import radio
 import utime
 import random
 #protocol:
-#   (1,19) random select ID as device ID
+#   (1,20) random select ID as device ID
 #   device id 0 used for broadcast
 #   data format: TID:RID:value
 #   ACK format: value as ~
 #   broadcast msg "sid:0:0" every second
 #   power-up receive 1.5 second to select new device id
 #   auto invalid leaving node
+#   LED index (x*5+y) as sid-1
+#   if sid collision, need to change new sid
 class Comm():
     def __init__(self):
         self.sid = 0
@@ -47,7 +51,7 @@ class Comm():
         self.pixel_debug(1,self.tx_cnt)
     def get_new_id(self,used_ids):
         while True:
-            id = random.randint(1, 19)
+            id = random.randint(1, 20)
             if not id in used_ids:
                 break
         return id
@@ -62,10 +66,12 @@ class Comm():
                 break
     def show_id(self):
         display.clear()
-        display.set_pixel(self.sid%5,int(self.sid/5),9)
+        sid = self.sid - 1
+        display.set_pixel(sid%5,int(sid/5),9)
         for id in self.used_ids:
             if id>0:
-                display.set_pixel(id%5,int(id/5),5)
+                uid = id - 1
+                display.set_pixel(uid%5,int(uid/5),5)
     def find_used_ids(self):
         used_ids=[]
         time_s = utime.ticks_us()
@@ -167,6 +173,10 @@ class Comm():
                         if not sid in self.used_ids_next:
                             self.used_ids_next.append(sid)
 
+                        if sid == self.sid: # sid collision
+                            self.sid = self.get_new_id(self.used_ids)
+                            self.show_id()
+
                         if did == self.sid:
                             if value == self.ack:
                                 self.ack_received = True
@@ -177,7 +187,12 @@ class Comm():
                             #radio.send ("%i:%i:%s"%(self.sid,sid,self.ack))
 
                     self.pixel_debug(0,self.rx_cnt)
-
+                if button_b.was_pressed(): # test sid collision
+                    if len(self.used_ids)>0:
+                        self.sid = self.used_ids[0]
+                    else:
+                        self.sid = random.randint(1, 20)
+                    break
             tx_rate = float(self.tx_new_cnt)/test_period
             rx_rate = float(self.rx_new_cnt)/test_period
             str_output = "(%.1f,%.1f,%i)" %(tx_rate, rx_rate, self.tx_new_cnt - self.ack_cnt)
