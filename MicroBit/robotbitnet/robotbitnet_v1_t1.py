@@ -1,37 +1,6 @@
-#RobotBitNet
-#Features:
-#   multi-nodes radio communication with re-transmition
-#   current ids show on LEDs (sid: brighter,did: darker, mid: brightest)
-#   random tx rate test
-#   auto select lowest non-used sid
-#   sid collision avoidence
-#   APP version 1, support type 1
-#Usage:
-#   Button-A: start, Button-B: enable/disable master
-#   print format: sid, mid
-#   limitation: max nodes = 20, due to reserved 20 LEDs to show device id
-#LICENSE: MIT
-#Author: WuLung Hsu, wuulong@gmail.com
-#Document: https://paper.dropbox.com/doc/MbitBot--AWWwIfCnEicRuc7gSfO_tmcJAg-DG5SSj5zQhBv1CoAgDtAG
-
-#protocol:
-#   (1,20) random select ID as device ID
-#   device id 0 used for broadcast
-#   data format: TID:RID:1,type,pertype_value
-#   ACK format: value as ~
-#   broadcast msg "sid:0:0" + type1 every second
-#   power-up receive 1.5 second to select new device id
-#   auto invalid leaving node
-#   LED index (x*5+y) as sid-1
-#   if sid collision, will change new sid
-
-#LED show type
-# 0- current ID, 1-Master ID
-# function comments
-#class Comm():
-
-
-#code section: the following code always be replaced by code file, duplicate here for reference
+# RobotBitNet
+# Licence: MIT
+# Limited memory coding style, doc in the same folder
 from microbit import *
 import radio as ro
 import utime as ut
