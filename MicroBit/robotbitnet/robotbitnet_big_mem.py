@@ -1,47 +1,3 @@
-#RobotBitNet
-#Features:
-#	PC domain master enabled
-#   multi-nodes radio communication with re-transmition
-#   current ids show on LEDs (sid: brighter,did: darker, mid: brightest)
-#   auto select lowest non-used sid
-#   sid collision avoidence
-#   APP version 1, support type 1,20
-#   first one(id=1) is master
-#Usage:
-#   Button-A: start, Button-B: enable/disable master for debug
-#   print format: sid, mid
-#   limitation: max nodes = 20, due to reserved 20 LEDs to show device id
-#LICENSE: MIT
-#Author: WuLung Hsu, wuulong@gmail.com
-#Document: https://paper.dropbox.com/doc/MbitBot--AWWwIfCnEicRuc7gSfO_tmcJAg-DG5SSj5zQhBv1CoAgDtAG
-
-#protocol:
-#   (1,20) random select ID as device ID
-#   device id 0 used for broadcast
-#   data format: TID:RID:1,type,pertype_value
-#   ACK format: value as ~
-#   broadcast msg "sid:0:0" + type1 every second
-#   power-up receive 1.5 second to select new device id
-#   auto invalid leaving node
-#   LED index (x*5+y) as sid-1
-#   if sid collision, will change new sid
-
-# Development history
-# robotbitnet_v1_t1.py
-#   memory saving version, compatible with v0
-# robotbitnet_v1_t2.py
-#   non-class compatible version with v1
-# robotbitnet_v1_t3.py
-#   command and handler support
-# robotbitnet_v1_t4.py
-#   plot previous id's compass.heading()
-# serial_commander.py
-#	PC serial tool test code
-# robotbitnet_v1_t5.py
-#   enable PC domain master
-#	work with dm_monitor.py
-
-#code section: the following code always be replaced by code file, duplicate here for reference
 # RobotBitNet
 # Licence: MIT
 # Limited memory coding style, doc in the same folder
@@ -49,7 +5,7 @@ import radio as ro
 import utime as ut
 import random as rn
 from microbit import display as di
-from microbit import button_a,button_b,compass
+from microbit import button_a,button_b,compass, uart
 
 lid = 0
 ack = "~"
@@ -67,11 +23,14 @@ def init():
     ro.on()
     ut.sleep_ms(100)
 
+
+
 def tx(did,v):
     global txc
     txc += 1
     txt = "%i:%i:%s" %(lid,did,str(v))
     ro.send(txt)
+    print("T:%s" %(txt))
     leds(1,txc)
 
 def txp(did,ty,v):
@@ -190,7 +149,7 @@ def bi_tran():
         t_s = ut.ticks_us()
 
         #broadcast device exist every test period
-        txp(0,2,compass.heading())
+        txp(0,2,cur_num_tx)#compass.heading()
         mt()
         show_id()
         leds_br()
@@ -214,6 +173,11 @@ def bi_tran():
                     did = uids[cidx]
                     txp(did,20,did)
                     cidx +=1
+
+            rl= uart.readline()
+            if rl:
+                msg = str(rl, 'UTF-8')
+                print(msg)
 
 
             incoming = ro.receive()
@@ -240,6 +204,7 @@ def bi_tran():
                             ackd = True
                         else:
                             tx(sid,ack)
+                    print("R:%s" %(incoming))
                     pvs = value.split(",")
 
                     if did==0:
@@ -252,13 +217,13 @@ def bi_tran():
                             if pvs[1]=="2":
                                 #print("(sid=%i,%s)" % (sid,pvs[4]))
                                 if lid-sid==1:
-                                    print("(%s)" % (pvs[4]))
+                                    pass
 
                     if did==lid:
                         if pvs[0]=="1":
                             if pvs[1]=="20": #action
                                 pass
-                                
+
 
                     del pvs
                     del items
