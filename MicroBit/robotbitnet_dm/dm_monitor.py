@@ -3,6 +3,7 @@
 #    log RobotBitNet network
 #    support dm send raw command through radio tx
 #    dm prototype with nodes(all init information from uart rx)
+#    CLI support
 #Default:
 #    ask end point report number by sequence
 #    115200,N81
@@ -20,8 +21,15 @@ import threading
 from serial import *
 import time
 import sys
+import cmd
+
 
 ser_name = '/dev/cu.usbmodem1412'
+VERSION = "0.2.0"
+
+dm = None
+cli = None
+th = None
 
 class Node():
     def __init__(self,id):
@@ -29,7 +37,10 @@ class Node():
         self.last_rx = 0
     def rx_update(self):
         self.last_rx = time.time()
-        pass
+    def desc(self):
+        t_now = time.time()
+        txt = "node ID=%i, last_rx=%.3f s" %(self.id,self.last_rx - t_now)
+        return txt
 # DM function
 class DM():
     def __init__(self):
@@ -37,9 +48,15 @@ class DM():
         self.sid=1
         self.nodes = {} #id as index, not include self
         self.uids = []
-        pass
+        self.ready = False
+        
+    def reset(self):
+        self.__init__()
     def get_nodes_cnt(self):
-        return len(self.uids) + 1
+        if self.ready:
+            return len(self.uids) + 1
+        else:
+            return 0
     #l1 T/R=
     #l2 sid:did:1,type,pertype
     #l3 1,20,num
@@ -58,6 +75,7 @@ class DM():
                 if tr == "T" and self.dmid == 0:          
                     self.dmid = sid
                     self.sid = sid 
+                    self.ready = True
                 if tr == "T" and did==0: # maintain  
                     time_now = time.time()  
                     for id in self.nodes.keys():
@@ -75,6 +93,54 @@ class DM():
                         if sid in self.nodes:
                             self.nodes[sid].rx_update()
                         
+
+class DmCli(cmd.Cmd):
+    def __init__(self):
+        cmd.Cmd.__init__(self)
+        self.prompt = 'Dm>'
+        self.user_quit = False
+        pass
+    def do_quit(self, line):
+        """quit"""
+        self.user_quit = True
+        return True
+    def do_reset(self,line):
+        """reset DM"""
+        dm.reset()
+    def do_dminfo(self,line):
+        """Show DM information"""
+        if dm.ready:
+            str = "Domain nodes count=%i\nDM ID=%i\nDM broker ID=%i" %(dm.get_nodes_cnt(),dm.dmid,dm.sid)
+            print(str)
+            for id in dm.nodes.keys():
+                node = dm.nodes[id]
+                print(node.desc())
+        else:
+            print("DM not ready!")
+        
+
+    def wait_dm_ready(self):
+        while dm.dmid==0:
+            time.sleep(0.1)
+    def do_version(self,line):
+        """Report software version"""
+        out = "DmMonitor V%s" %(VERSION)
+        print(out)
+    def do_demo1(self,line):
+        """Demo EP show number by sequence"""
+        self.wait_dm_ready()
+        show_num = 1
+        seq = 0          
+        while 1:
+            sid = dm.sid
+            # send command here
+            for did in dm.nodes.keys():
+                th.serial_send("%i:%i:1,20,%i="%(sid,did,show_num)) 
+                show_num+=1
+                time.sleep(1)
+            
+            time.sleep(1)
+
 #Serial process thread
 class MonitorThread(threading.Thread):
     def __init__(self, dm, wait=0.01):
@@ -93,7 +159,7 @@ class MonitorThread(threading.Thread):
             if len(line)>0:
                 msg = line.strip()
                 msg_line =msg+"\n" 
-                sys.stdout.write(msg_line)
+                #sys.stdout.write(msg_line)
                 self.dm.proc_record(msg_line)
 
     
@@ -109,28 +175,28 @@ class MonitorThread(threading.Thread):
         sys.stdout.write("[%s]\n" % send_str)
         self.ser.write("%s\n" % send_str)
 
+
+
 def main():
+    global dm,cli,th
     dm = DM()
+    cli = DmCli()
     th = MonitorThread(dm)
     th.start()
-    show_num = 1
-    seq = 0    
-
-    while dm.dmid==0:
-        time.sleep(0.1)
+       
     while 1:
+        
         try:
-            sid = dm.sid
-            # send command here
-            for did in dm.nodes.keys():
-                th.serial_send("%i:%i:1,20,%i="%(sid,did,show_num)) 
-                show_num+=1
-                time.sleep(1)
-            
-            time.sleep(1)
+            cli.cmdloop()
+            if cli.user_quit:
+                th.exit = True
+                break
         except:
             th.exit = True
+            print("Exception!")
             break
 
 if __name__ == "__main__":
     main()
+    
+    
