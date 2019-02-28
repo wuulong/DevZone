@@ -4,6 +4,7 @@
 #    support dm send raw command through radio tx
 #    dm prototype with nodes(all init information from uart rx)
 #    CLI support
+#    pertype info, monitor id, maxnodes test
 #Default:
 #    ask end point report number by sequence
 #    115200,N81
@@ -25,7 +26,7 @@ import cmd
 
 
 ser_name = '/dev/cu.usbmodem1412'
-VERSION = "0.2.0"
+VERSION = "0.3"
 
 dm = None
 cli = None
@@ -35,11 +36,25 @@ class Node():
     def __init__(self,id):
         self.id = id
         self.last_rx = 0
-    def rx_update(self):
+        self.ms = False
+        self.cs = False
+        self.tinfo = {} #pertype infor, type as id, content [], ex: 20->[number]
+    #l3: [] for l3 information, ex [1,20,number]
+    def rx_update(self,l3):
         self.last_rx = time.time()
+        #print("rx_update=%s"%(str(l3)))
+        if len(l3)>=2:
+            tid = int(l3[1])
+            self.tinfo[tid] = l3[2:]
+            if tid== 1 or tid==2:
+                self.ms = int(l3[2])
+                self.cs = int(l3[3])
+
     def desc(self):
         t_now = time.time()
-        txt = "node ID=%i, last_rx=%.3f s" %(self.id,self.last_rx - t_now)
+        txt = "node ID=%2i, last_rx=%2.3f s,ms=%i,cs=%i" %(self.id,self.last_rx - t_now,self.ms,self.cs)
+        for id in self.tinfo.keys():
+            txt +="\n\ttype[%i]=%s" %(id,self.tinfo[id])
         return txt
 # DM function
 class DM():
@@ -52,11 +67,18 @@ class DM():
         
     def reset(self):
         self.__init__()
+    
     def get_nodes_cnt(self):
         if self.ready:
             return len(self.uids) + 1
         else:
             return 0
+    def get_max_id(self):
+        max_id=self.sid
+        for i in range(len(self.uids)):
+            if self.uids[i]>max_id:
+                max_id = self.uids[i]
+        return max_id
     #l1 T/R=
     #l2 sid:did:1,type,pertype
     #l3 1,20,num
@@ -88,10 +110,10 @@ class DM():
                     if not sid in self.uids:
                         self.uids.append(sid)
                         self.nodes[sid] = Node(sid)
-                        self.nodes[sid].rx_update()                        
+                        self.nodes[sid].rx_update(l3)                        
                     else:
                         if sid in self.nodes:
-                            self.nodes[sid].rx_update()
+                            self.nodes[sid].rx_update(l3)
                         
 
 class DmCli(cmd.Cmd):
@@ -126,6 +148,38 @@ class DmCli(cmd.Cmd):
         """Report software version"""
         out = "DmMonitor V%s" %(VERSION)
         print(out)
+    def do_mon_ids(self,line):
+        """Monitor ID/main status"""
+        #ss-12345678901234567890
+        #01-.DL.
+        txt = "SS-"
+        max_id = dm.get_max_id() 
+        for i in range(1, max_id+1):
+            txt += "%s" % (i%10)
+        #txt += "\n"
+        print(txt)
+
+        for t in range(10): 
+            txt = "%2i-" %(t)    
+            for i in range(1, max_id+1):
+                if i == dm.dmid:
+                    sym = "d"
+                else:                
+                    if i  in dm.nodes:
+                        node = dm.nodes[i]
+    
+                        if node.ms:
+                            sym = "l"
+                        else:
+                            sym = "."
+                        if node.cs:
+                            sym = sym.upper()
+                    else:
+                        sym = " "
+                txt += sym
+                
+            print(txt)
+            time.sleep(1)
     def do_demo1(self,line):
         """Demo EP show number by sequence"""
         self.wait_dm_ready()
@@ -140,7 +194,41 @@ class DmCli(cmd.Cmd):
                 time.sleep(1)
             
             time.sleep(1)
+    def do_maxnodes_test(self,line):
+        """Test Max nodes
+            maxnodes_test [max_nodes_cnt]
+        """
+        self.wait_dm_ready()
+        show_num = 2
+        test_did=0
+        
+        max_nodes_cnt = 20
+        if not line =="":
+            max_nodes_cnt = int(line)
 
+        sid = dm.sid
+        # send command here
+        for did in dm.nodes.keys():
+            if test_did==0:
+                test_did = did
+            print("testing id=%i, max counts=%i" %(did,show_num))
+            th.serial_send("%i:%i:1,20,%i="%(sid,did,show_num)) 
+            show_num+=1
+            time.sleep(1)
+        for id in range(1,max_nodes_cnt):
+            if not(id == dm.sid or (id in dm.uids) ):
+                print("testing id=%i, max counts=%i" %(id,show_num))
+                th.serial_send("%i:%i:1,20,%i="%(id,1,show_num)) 
+                time.sleep(0.01)
+                #th.serial_send("%i:%i:1,20,%i="%(sid,test_did,show_num))
+                #time.sleep(0.01)
+                
+                show_num+=1
+        self.do_dminfo("")
+        #time.sleep(3)
+        #for i in range(10):
+        #    th.serial_send("%i:%i:1,20,%i="%(sid,test_did,show_num-1))
+        #    time.sleep(1)
 #Serial process thread
 class MonitorThread(threading.Thread):
     def __init__(self, dm, wait=0.01):
@@ -160,7 +248,7 @@ class MonitorThread(threading.Thread):
                 msg = line.strip()
                 msg_line =msg+"\n" 
                 #sys.stdout.write(msg_line)
-                self.dm.proc_record(msg_line)
+                self.dm.proc_record(msg)
 
     
     def run(self):
@@ -185,16 +273,16 @@ def main():
     th.start()
        
     while 1:
-        
-        try:
+        if 1:
+        #try:
             cli.cmdloop()
             if cli.user_quit:
                 th.exit = True
                 break
-        except:
-            th.exit = True
-            print("Exception!")
-            break
+        #except:
+        #    th.exit = True
+        #    print("Exception!")
+        #    break
 
 if __name__ == "__main__":
     main()
