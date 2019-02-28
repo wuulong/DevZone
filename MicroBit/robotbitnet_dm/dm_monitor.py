@@ -5,6 +5,7 @@
 #    dm prototype with nodes(all init information from uart rx)
 #    CLI support
 #    pertype info, monitor id, maxnodes test
+#    support networkx, monitor per-node rate
 #Default:
 #    ask end point report number by sequence
 #    115200,N81
@@ -14,6 +15,8 @@
 #    domain monitor log to file
 #Verification:
 #    Mac OK
+#Requirement:
+#    pyserial, networkx
 #LICENSE: MIT
 #Author: WuLung Hsu, wuulong@gmail.com
 #Document: https://paper.dropbox.com/doc/MbitBot--AWWwIfCnEicRuc7gSfO_tmcJAg-DG5SSj5zQhBv1CoAgDtAG
@@ -26,7 +29,7 @@ import cmd
 
 
 ser_name = '/dev/cu.usbmodem1412'
-VERSION = "0.3"
+VERSION = "0.4"
 
 dm = None
 cli = None
@@ -63,7 +66,9 @@ class DM():
         self.sid=1
         self.nodes = {} #id as index, not include self
         self.uids = []
+        self.nn_cnt = {} #sid-did as key, [current_cnt, ori_cnt, rate ]
         self.ready = False
+        self.t_last_mt = 0
         
     def reset(self):
         self.__init__()
@@ -79,6 +84,41 @@ class DM():
             if self.uids[i]>max_id:
                 max_id = self.uids[i]
         return max_id
+    def get_rate_between(self,sid,did,both=True):
+        
+        rate = 0 
+        key = "%i-%i" %(sid,did)
+        if key  in self.nn_cnt:
+            rate += self.nn_cnt[key][2]
+        if both:
+            key = "%i-%i" %(did,sid)
+            if key  in self.nn_cnt:
+                rate += self.nn_cnt[key][2]
+        return rate
+    # monitor network rate
+    def proc_traffic(self,sid,did):
+        if did==0 or did!=0:
+            key = "%i-%i" %(sid,did)
+            if key in self.nn_cnt:
+                self.nn_cnt[key][0]+=1
+                pass
+            else:
+                self.nn_cnt[key] = [0,0,0]
+        
+    def desc(self):
+        if dm.ready:
+            str = "Domain nodes count=%i\nDM ID=%i\nDM broker ID=%i" %(dm.get_nodes_cnt(),dm.dmid,dm.sid)
+            print(str)
+            for id in dm.nodes.keys():
+                node = dm.nodes[id]
+                print(node.desc())
+            for key in dm.nn_cnt.keys():
+                nn = dm.nn_cnt[key]
+                ids = key.split("-")
+                print("%s->%s : %i,%i,%i" %(ids[0],ids[1],nn[0],nn[1],nn[2]))
+        else:
+            print("DM not ready!")
+        
     #l1 T/R=
     #l2 sid:did:1,type,pertype
     #l3 1,20,num
@@ -93,6 +133,7 @@ class DM():
                 sid,did,ap_str = l2
                 sid = int(sid)
                 did = int(did)
+                self.proc_traffic(sid,did)
                 l3 = ap_str.split(",")  
                 if tr == "T" and self.dmid == 0:          
                     self.dmid = sid
@@ -100,12 +141,27 @@ class DM():
                     self.ready = True
                 if tr == "T" and did==0: # maintain  
                     time_now = time.time()  
+                    ids_need_del = []
                     for id in self.nodes.keys():
-                        if time_now - self.nodes[id].last_rx > 5:
-                            del self.nodes[id]
-                            pos = self.uids.index(id)
-                            if pos>=0:
-                                del self.uids[pos]
+                        if time_now - self.nodes[id].last_rx > 4.9:
+                            ids_need_del.append(id)
+                    for id in ids_need_del: 
+                        del self.nodes[id]
+                        pos = self.uids.index(id)
+                        if pos>=0:
+                            del self.uids[pos]
+                    if self.t_last_mt>0:
+                        if time_now - self.t_last_mt >= 4.9:
+                            for key in self.nn_cnt:
+                                nn = self.nn_cnt[key]
+                                nn[2] = nn[0] * 12
+                                nn[1] += nn[0]
+                                nn[0]=0
+                            self.t_last_mt = time_now
+                        else:
+                            pass
+                    else:
+                        self.t_last_mt = time_now
                 if tr == "R":
                     if not sid in self.uids:
                         self.uids.append(sid)
@@ -131,15 +187,7 @@ class DmCli(cmd.Cmd):
         dm.reset()
     def do_dminfo(self,line):
         """Show DM information"""
-        if dm.ready:
-            str = "Domain nodes count=%i\nDM ID=%i\nDM broker ID=%i" %(dm.get_nodes_cnt(),dm.dmid,dm.sid)
-            print(str)
-            for id in dm.nodes.keys():
-                node = dm.nodes[id]
-                print(node.desc())
-        else:
-            print("DM not ready!")
-        
+        dm.desc()
 
     def wait_dm_ready(self):
         while dm.dmid==0:
@@ -180,19 +228,76 @@ class DmCli(cmd.Cmd):
                 
             print(txt)
             time.sleep(1)
+    
+        
+    def do_network(self,line):
+        """Using networkx to plot current network with update per second
+            do_network [with_update]    #with_update 0:no update, 1: update     
+        """
+        import matplotlib.pyplot as plt
+        import matplotlib.animation as an
+        import networkx as nx
+        
+        G = nx.Graph()
+        
+        
+        def nx_update(num=0):
+            fig.clf()
+            fig.suptitle("Current network status")
+            G.clear()
+            
+            for did in dm.nodes.keys():
+                rate = dm.get_rate_between(dm.dmid,did)
+                
+                G.add_edge(str(dm.dmid), str(did), weight= rate+1 )
+            
+            for id1 in dm.nodes.keys():
+                for id2 in dm.nodes.keys():
+                    if id2>id1:
+                        rate = dm.get_rate_between(id2,id1)
+                        G.add_edge(str(id2), str(id1), weight=rate+1)
+            
+            elarge = [(u, v) for (u, v, d) in G.edges(data=True) if d['weight'] > 1]
+            esmall = [(u, v) for (u, v, d) in G.edges(data=True) if d['weight'] <= 1]
+            
+            pos = nx.spring_layout(G)  # positions for all nodes
+            
+            # nodes
+            nx.draw_networkx_nodes(G, pos, node_size=700)
+            
+            # edges
+            nx.draw_networkx_edges(G, pos, edgelist=elarge,
+                                   width=6)
+            nx.draw_networkx_edges(G, pos, edgelist=esmall,
+                                   width=6, alpha=0.5, edge_color='b', style='dashed')
+            
+            # labels
+            nx.draw_networkx_labels(G, pos, font_size=20, font_family='sans-serif')
+            
+            plt.axis('off')
+        
+        fig, ax = plt.subplots() 
+        
+        nx_update(1)
+        if line=="1":
+            ani = an.FuncAnimation(fig, nx_update,init_func=nx_update, frames=6, interval=5000, repeat=False)
+        plt.show()
+        
+    def demo1(self,show_num):
+        sid = dm.sid
+        
+        # send command here
+        for did in dm.nodes.keys():
+            th.serial_send("%i:%i:1,20,%i="%(sid,did,show_num)) 
+            show_num+=1
+            time.sleep(1)
+        
     def do_demo1(self,line):
         """Demo EP show number by sequence"""
         self.wait_dm_ready()
-        show_num = 1
-        seq = 0          
-        while 1:
-            sid = dm.sid
-            # send command here
-            for did in dm.nodes.keys():
-                th.serial_send("%i:%i:1,20,%i="%(sid,did,show_num)) 
-                show_num+=1
-                time.sleep(1)
-            
+        show_num = 1         
+        for i in range(5):
+            self.demo1(show_num)            
             time.sleep(1)
     def do_maxnodes_test(self,line):
         """Test Max nodes
@@ -245,7 +350,9 @@ class MonitorThread(threading.Thread):
         line = self.ser.readline()
         if line:
             if len(line)>0:
-                msg = line.strip()
+                #msg = line.strip()
+                msg = str(line,'UTF-8').strip()
+                #print(msg)
                 msg_line =msg+"\n" 
                 #sys.stdout.write(msg_line)
                 self.dm.proc_record(msg)
@@ -261,7 +368,8 @@ class MonitorThread(threading.Thread):
 
     def serial_send(self,send_str):
         sys.stdout.write("[%s]\n" % send_str)
-        self.ser.write("%s\n" % send_str)
+        out_str = "%s\n" % send_str
+        self.ser.write(out_str.encode())
 
 
 
@@ -273,16 +381,15 @@ def main():
     th.start()
        
     while 1:
-        if 1:
-        #try:
+        try:
             cli.cmdloop()
             if cli.user_quit:
                 th.exit = True
                 break
-        #except:
-        #    th.exit = True
-        #    print("Exception!")
-        #    break
+        except:
+            th.exit = True
+            print("Exception!")
+            break
 
 if __name__ == "__main__":
     main()
