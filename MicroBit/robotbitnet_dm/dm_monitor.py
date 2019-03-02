@@ -6,7 +6,7 @@
 #    CLI support
 #    pertype info, monitor id, maxnodes test
 #    support networkx, monitor per-node rate
-#    support rssi capacity
+#    support rssi capacity, estimate distance
 #Default:
 #    ask end point report number by sequence
 #    115200,N81
@@ -30,11 +30,79 @@ import cmd
 
 
 ser_name = '/dev/cu.usbmodem1412'
-VERSION = "0.5"
+VERSION = "0.5.1"
 
 dm = None
 cli = None
 th = None
+
+def mymap(x, in_min, in_max, out_min, out_max):
+    value = int((x-in_min) * (out_max-out_min) / (in_max-in_min) + out_min)
+    if value>= out_max:
+        value = out_max -1
+    elif value < out_min:
+        value = out_min
+
+    return value
+
+#calibrate by match any record in the range table
+def calibrate_by_offset(cm_m, rssi_m):
+    global range_ref
+    diff = 0
+    for i in range(len(range_ref)):
+        [cm,rssi] = range_ref[i]
+        if cm_m == cm:
+            diff = rssi_m - rssi
+            break
+    for i in range(len(range_ref)):
+        range_ref[i][1] = range_ref[i][1] + diff
+
+
+def estimate_distance(rssi_m,range_ref):
+    max_i = 0
+    min_i = 0
+    if rssi_m>=range_ref[0][1]:
+       return 0
+    if rssi_m <= range_ref[len(range_ref)-1][1]:
+        return range_ref[-1][0]
+    for i in range(len(range_ref)):
+        [cm,rssi] = range_ref[i]
+        if rssi_m >= rssi:
+            max_i = i
+            break
+        else:
+            min_i = i
+    return mymap(rssi_m,range_ref[min_i][1],range_ref[max_i][1],range_ref[min_i][0],range_ref[max_i][0])
+
+
+
+def test_estimate():
+    while True:
+        for i in range(-65,-94,-1):
+            value = estimate_distance(i,range_ref)
+            print("%f->%i"%(i,value))
+        sleep(10000)
+
+
+cal_cm=50
+cal_rssi=-76.0
+
+range_ref = [
+    [ 0   , -65.2 ],
+    [ 10  , -66.0 ],
+    [ 20  , -69.1 ],
+    [ 30  , -71.0 ],
+    [ 40  , -73.0 ],
+    [ 50  , -76.0 ],
+    [ 75  , -77.0 ],
+    [ 100 , -79.0 ],
+    [ 125 , -82.0 ],
+    [ 150 , -84.6 ],
+    [ 200 , -87.6 ],
+    [ 250 , -90.0 ],
+    [ 300 , -93.7 ]]
+
+
 
 class Node():
     def __init__(self,id):
@@ -66,7 +134,8 @@ class Node():
             txt +="\n\ttype[%i]=%s" %(id,self.tinfo[id])
         for id in self.rssis.keys():
             rssi = self.rssis[id] 
-            txt +="\n\trssi[%i]=%i" %(id,rssi)
+            cm = estimate_distance(rssi,range_ref)
+            txt +="\n\trssi[%i]=%i -> %i cm" %(id,rssi,cm)
         return txt
 # DM function
 class DM():
@@ -84,7 +153,7 @@ class DM():
     
     def get_nodes_cnt(self):
         if self.ready:
-            return len(self.uids) + 1
+            return len(self.uids)
         else:
             return 0
     def get_max_id(self):
@@ -122,7 +191,23 @@ class DM():
         rssi += node.rssis[did]
         return int(rssi/2)
         
-            
+    def get_sym_fromid(self,id):
+        if id == dm.dmid:
+            sym = "d"
+        else:                
+            if id  in dm.nodes:
+                node = dm.nodes[id]
+
+                if node.ms:
+                    sym = "l"
+                else:
+                    sym = "e"
+                if node.cs:
+                    sym = sym.upper()
+            else:
+                sym = " "
+        return sym
+
     # monitor network rate
     def proc_traffic(self,sid,did):
         if did==0 or did!=0:
@@ -135,7 +220,7 @@ class DM():
         
     def desc(self):
         if dm.ready:
-            str = "Domain nodes count=%i\nDM ID=%i\nDM broker ID=%i" %(dm.get_nodes_cnt(),dm.dmid,dm.sid)
+            str = "Domain nodes count=%i\nDM/broker ID=%i\n" %(dm.get_nodes_cnt(),dm.dmid)
             print(str)
             for id in dm.nodes.keys():
                 node = dm.nodes[id]
@@ -198,7 +283,10 @@ class DM():
                     else:
                         if sid in self.nodes:
                             self.nodes[sid].rx_update(l3)
-                        
+
+
+
+             
 
 class DmCli(cmd.Cmd):
     def __init__(self):
@@ -238,20 +326,7 @@ class DmCli(cmd.Cmd):
         for t in range(10): 
             txt = "%2i-" %(t)    
             for i in range(1, max_id+1):
-                if i == dm.dmid:
-                    sym = "d"
-                else:                
-                    if i  in dm.nodes:
-                        node = dm.nodes[i]
-    
-                        if node.ms:
-                            sym = "l"
-                        else:
-                            sym = "."
-                        if node.cs:
-                            sym = sym.upper()
-                    else:
-                        sym = " "
+                sym = dm.get_sym_fromid(i)
                 txt += sym
                 
             print(txt)
@@ -285,7 +360,11 @@ class DmCli(cmd.Cmd):
                     if id2>id1:
                         rate = dm.get_rate_between(id2,id1)
                         rssi = dm.get_distance_between(id2,id1)
-                        G.add_edge(str(id2), str(id1), rate=rate,rssi=rssi)
+                        sym2 = dm.get_sym_fromid(id2)
+                        sym1 = dm.get_sym_fromid(id1)
+                        n1 = "%i-%s" %(id2,sym2)
+                        n2 = "%i-%s" %(id1,sym1)
+                        G.add_edge(n1,n2, rate=rate,rssi=rssi)
             
             elarge = [(u, v) for (u, v, d) in G.edges(data=True) if d['rate'] > 0]
             esmall = [(u, v) for (u, v, d) in G.edges(data=True) if d['rate'] <= 0]
@@ -404,6 +483,7 @@ class MonitorThread(threading.Thread):
 
 
 def main():
+    calibrate_by_offset(cal_cm,cal_rssi)
     global dm,cli,th
     dm = DM()
     cli = DmCli()
