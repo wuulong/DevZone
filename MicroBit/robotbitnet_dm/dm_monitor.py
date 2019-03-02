@@ -6,6 +6,7 @@
 #    CLI support
 #    pertype info, monitor id, maxnodes test
 #    support networkx, monitor per-node rate
+#    support rssi capacity
 #Default:
 #    ask end point report number by sequence
 #    115200,N81
@@ -29,7 +30,7 @@ import cmd
 
 
 ser_name = '/dev/cu.usbmodem1412'
-VERSION = "0.4"
+VERSION = "0.5"
 
 dm = None
 cli = None
@@ -42,6 +43,7 @@ class Node():
         self.ms = False
         self.cs = False
         self.tinfo = {} #pertype infor, type as id, content [], ex: 20->[number]
+        self.rssis = {} #remote node id as key, content rssi
     #l3: [] for l3 information, ex [1,20,number]
     def rx_update(self,l3):
         self.last_rx = time.time()
@@ -52,12 +54,19 @@ class Node():
             if tid== 1 or tid==2:
                 self.ms = int(l3[2])
                 self.cs = int(l3[3])
+            if tid==11:
+                self.rssis[int(l3[2])] = int(l3[3])
+            #rssi handler, type=11
+        
 
     def desc(self):
         t_now = time.time()
         txt = "node ID=%2i, last_rx=%2.3f s,ms=%i,cs=%i" %(self.id,self.last_rx - t_now,self.ms,self.cs)
         for id in self.tinfo.keys():
             txt +="\n\ttype[%i]=%s" %(id,self.tinfo[id])
+        for id in self.rssis.keys():
+            rssi = self.rssis[id] 
+            txt +="\n\trssi[%i]=%i" %(id,rssi)
         return txt
 # DM function
 class DM():
@@ -95,6 +104,25 @@ class DM():
             if key  in self.nn_cnt:
                 rate += self.nn_cnt[key][2]
         return rate
+    def get_distance_between(self,sid,did):
+        if not did in self.nodes:
+            return 0
+        node = self.nodes[did]
+        if not sid in node.rssis:
+            return 0
+        
+        rssi = node.rssis[sid]
+        
+        if not sid in self.nodes:
+            return rssi
+        node = self.nodes[sid]
+        if not did in node.rssis:
+            return rssi
+        
+        rssi += node.rssis[did]
+        return int(rssi/2)
+        
+            
     # monitor network rate
     def proc_traffic(self,sid,did):
         if did==0 or did!=0:
@@ -162,7 +190,7 @@ class DM():
                             pass
                     else:
                         self.t_last_mt = time_now
-                if tr == "R":
+                if tr == "R" or tr=="T":
                     if not sid in self.uids:
                         self.uids.append(sid)
                         self.nodes[sid] = Node(sid)
@@ -246,19 +274,21 @@ class DmCli(cmd.Cmd):
             fig.suptitle("Current network status")
             G.clear()
             
-            for did in dm.nodes.keys():
-                rate = dm.get_rate_between(dm.dmid,did)
+            #for did in dm.nodes.keys():
+            #    rate = dm.get_rate_between(dm.dmid,did)
+            #    rssi = dm.get_distance_between(dm.dmid,did)
                 
-                G.add_edge(str(dm.dmid), str(did), weight= rate+1 )
+            #    G.add_edge(str(dm.dmid), str(did), weight= rate+1,length=5 )
             
             for id1 in dm.nodes.keys():
                 for id2 in dm.nodes.keys():
                     if id2>id1:
                         rate = dm.get_rate_between(id2,id1)
-                        G.add_edge(str(id2), str(id1), weight=rate+1)
+                        rssi = dm.get_distance_between(id2,id1)
+                        G.add_edge(str(id2), str(id1), rate=rate,rssi=rssi)
             
-            elarge = [(u, v) for (u, v, d) in G.edges(data=True) if d['weight'] > 1]
-            esmall = [(u, v) for (u, v, d) in G.edges(data=True) if d['weight'] <= 1]
+            elarge = [(u, v) for (u, v, d) in G.edges(data=True) if d['rate'] > 0]
+            esmall = [(u, v) for (u, v, d) in G.edges(data=True) if d['rate'] <= 0]
             
             pos = nx.spring_layout(G)  # positions for all nodes
             
@@ -273,7 +303,7 @@ class DmCli(cmd.Cmd):
             
             # labels
             nx.draw_networkx_labels(G, pos, font_size=20, font_family='sans-serif')
-            
+            nx.draw_networkx_edge_labels(G, pos)
             plt.axis('off')
         
         fig, ax = plt.subplots() 
@@ -381,15 +411,16 @@ def main():
     th.start()
        
     while 1:
-        try:
+        if 1:
+        #try:
             cli.cmdloop()
             if cli.user_quit:
                 th.exit = True
                 break
-        except:
-            th.exit = True
-            print("Exception!")
-            break
+        #except:
+        #    th.exit = True
+        #    print("Exception!")
+        #    break
 
 if __name__ == "__main__":
     main()
