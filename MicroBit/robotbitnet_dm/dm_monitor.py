@@ -30,7 +30,7 @@ import cmd
 
 
 ser_name = '/dev/cu.usbmodem1412'
-VERSION = "0.5.1"
+VERSION = "0.5.2"
 
 dm = None
 cli = None
@@ -408,6 +408,33 @@ class DmCli(cmd.Cmd):
         for i in range(5):
             self.demo1(show_num)            
             time.sleep(1)
+    def do_demo_rccar(self,line):
+        """Demo rc car"""
+        self.wait_dm_ready()       
+
+        sid = dm.sid
+        
+        # send command here
+        dids = dm.nodes.keys()
+        for did in dids:
+            if not did == sid:
+                # dir = 0 or 1, with different speed
+                print("drive car. dir = 0 or 1, with different speed")
+                for i in range(0,100,10):
+                    v1 = i
+                    v2 = i
+                    th.serial_send("%i:%i:1,22,%i,%i="%(sid,did,v1,v2)) 
+                    time.sleep(0.25)
+                # different turn speed
+                print("drive car. different turn speed")
+                for i in range(0,100,10):
+                    percent = i
+                    go_value = 50
+                    th.serial_send("%i:%i:1,22,%i,%i="%(sid,did,percent,go_value)) 
+                    time.sleep(0.5)
+
+                th.serial_send("%i:%i:1,22,%i,%i="%(sid,did,50,50)) 
+            
     def do_maxnodes_test(self,line):
         """Test Max nodes
             maxnodes_test [max_nodes_cnt]
@@ -491,16 +518,15 @@ def main():
     th.start()
        
     while 1:
-        if 1:
-        #try:
+        try:
             cli.cmdloop()
             if cli.user_quit:
                 th.exit = True
                 break
-        #except:
-        #    th.exit = True
-        #    print("Exception!")
-        #    break
+        except:
+            th.exit = True
+            print("Exception!")
+            break
 
 if __name__ == "__main__":
     main()
