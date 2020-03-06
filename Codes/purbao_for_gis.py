@@ -7,6 +7,7 @@ import json
 import os
 import pandas as pd
 from datetime import timedelta, datetime
+import time
 """
 purbao URL format and example
 url = "http://purbao.lass-net.org/sensorGrid?date=2017/5/28&hour=0&level=0&minLat=23&maxLat=23.5&minLng=120&maxLng=121"
@@ -38,8 +39,17 @@ def pm25_day(data_date):
         file_datestr = data_date.strftime("%Y%m%d")
         filename = "output/R%s_%02i:00.json" %(file_datestr,hour)
         #print("filename=%s, url=%s" %(filename, url))
-        pm25_get(filename, url)
-        df = load_json(filename)
+        cont = True
+        while cont:
+            try:
+                pm25_get(filename, url)
+                df = load_json(filename)
+                cont = False
+            except:
+                print("Exception when process %s, retrying after 60s" %(filename))
+                if os.path.isfile(filename):
+                    os.remove(filename)
+                time.sleep(60)
         df['datetime']="%s %02i:00" %(file_datestr,hour)
         
         if hour>0:
@@ -156,5 +166,5 @@ def pm25_gen_year(year):
     df_mean.to_csv(filename,header=True,float_format="%.2f")
 
 #pm25_day(datetime.strptime("2019/03/04", "%Y/%m/%d")) # get one day data for debug
-df_all = pm25_range("2020/01/01","2020/02/01") # get day,month data for periold of time
-#pm25_gen_year(2019) #get year data after month data ready
+df_all = pm25_range("2019/01/27","2020/01/01") # get day,month data for periold of time
+pm25_gen_year(2019) #get year data after month data ready
