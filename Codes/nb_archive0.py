@@ -2,9 +2,10 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Mar 15 06:50:26 2020
-
-@author: wuulong
+Licence: MIT
+@author: wuulong@gmail.com
 """
+
 import os, fnmatch
 import json
 import pandas as pd 
@@ -68,16 +69,46 @@ def load_jsons(filenames):
 #filenames = find('2020*.jsonl', 'output') 
 #archive0_df = load_jsons(filenames)
 #%% plot test
-def plot_test(df):
-    df.plot('producer_id',y='cnt',kind='barh') #line type have problem
-    
+def plot_test(df,title):
+    from matplotlib.font_manager import FontProperties
+    myfont = FontProperties(fname=r'/Library/Fonts/Microsoft/MingLiU.ttf')
+    df.plot('name',y='cnt',kind='barh') #line type have problem
+    plt.title(title)
+    #plt.ylabel('行業別',fontproperties=myfont,size=6)
+    #plt.xlabel('數量(公噸/年)',fontproperties=myfont,size=6)
+    plt.legend(prop=myfont)
+    plt.xticks(fontname = 'SimSun',size=10)
+    plt.yticks(fontname = 'SimSun',size=10) 
+    #plt.savefig('plot.png')
 #%%
-filenames = find('2020-03-*.jsonl', 'publications') 
+def test():
+    producers_df = load_json('producers.jsonl')
+    producers_df = producers_df.drop(['classification', 'canonical_url', 'licenses',
+           'first_seen_at', 'last_updated_at', 'followership'],axis=1) #, 'languages'
+    #producers_df = producers_df.apply(lambda x: str(x).translate(None, ''.join(['[',']'])) if x.name in ['languages'] else x, axis=1)
+    #producers_df = producers_df.apply(lambda x: str(x.value).replace('[',''), axis=1)
+    #producers_df = producers_df.replace(regex='1', value='')
+    #producers_df.columns
+    producers_df.info()
+#%%
+producers_df = load_json('producers.jsonl')
+producers_df = producers_df.drop(['classification', 'canonical_url', 'licenses','languages',
+       'first_seen_at', 'last_updated_at', 'followership'],axis=1) 
+#producers_df = producers_df.apply(lambda x: str(x).translate(None, ''.join(['[',']'])) if x.name in ['languages'] else x, axis=1)
+#test_string.translate(None, ''.join(bad_chars)) 
+filenames = find('2020-03-01.jsonl', 'publications') 
 archive0_df = load_jsons(filenames)
 
 q_df = archive0_df.drop(['keywords','hashtags','tags','comments','urls'],axis=1) # FIXME: sqlite keyword problem
  
-query_str = """SELECT producer_id,count(producer_id) cnt FROM q_df group by producer_id order by cnt"""
+#query_str = """SELECT producer_id,count(producer_id) cnt FROM q_df group by producer_id order by cnt"""
+query_str = """
+SELECT q.producer_id,count(q.producer_id) cnt,( p.id || "-" || p.name) name FROM q_df q 
+inner join
+    producers_df p on q.producer_id=p.id
+group by q.producer_id order by cnt
+"""
+
 qarchive0_df= ps.sqldf(query_str, locals())
-plot_test(qarchive0_df)
+plot_test(qarchive0_df,"March article count by producer_id")
 
