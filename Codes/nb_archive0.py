@@ -80,17 +80,65 @@ def plot_test(df,title):
     plt.xticks(fontname = 'SimSun',size=10)
     plt.yticks(fontname = 'SimSun',size=10) 
     #plt.savefig('plot.png')
+#%% dict sort_by_value
+def sort_by_value(d): 
+    items=d.items() 
+    backitems=[[v[1],v[0]] for v in items] 
+    backitems.sort(reverse=True) 
+    return [ [backitems[i][1],backitems[i][0]] for i in range(0,len(backitems))]
 #%%
-def test():
+def title_freq(file_patten):
+    import jieba
+    import jieba.analyse
+
+    
+    jieba.load_userdict('user_dict.txt')
+    jieba.analyse.set_stop_words('user_stop.txt')
+    
     producers_df = load_json('producers.jsonl')
-    producers_df = producers_df.drop(['classification', 'canonical_url', 'licenses',
-           'first_seen_at', 'last_updated_at', 'followership'],axis=1) #, 'languages'
-    #producers_df = producers_df.apply(lambda x: str(x).translate(None, ''.join(['[',']'])) if x.name in ['languages'] else x, axis=1)
-    #producers_df = producers_df.apply(lambda x: str(x.value).replace('[',''), axis=1)
-    #producers_df = producers_df.replace(regex='1', value='')
-    #producers_df.columns
-    producers_df.info()
-#%%
+    pnames = list(producers_df['name'])
+    pnames_str = "\n".join(pnames)
+    p_phrases = jieba.cut(pnames_str, cut_all=True, HMM=True)
+
+    
+    filenames = find(file_patten, 'publications') 
+    archive0_df = load_jsons(filenames)    
+    titles = list(archive0_df['title'])
+    title_str = "\n".join(titles)    
+    tags = jieba.analyse.extract_tags(title_str, topK=100)
+    
+    tags_s1 = set(tags).difference(set(p_phrases))
+    
+    clean_numeric = lambda x: '' if x.isnumeric()  else x 
+    tags_s2 = list(map(clean_numeric, list(tags_s1)))
+
+    #black_list = ['Re','COM','討論','一個','...','什麼','','SETN','TaroNews','社會','財經']
+    #tags_s3 = set(tags_s2).difference(black_list)
+    
+    return tags_s2
+
+    """
+    df = archive0_df[['id','title']]
+    ph_freq = {}
+    
+    for index, row in df.iterrows():
+        text = row['title']
+        phrases = jieba.cut(text, cut_all=False, HMM=True)
+        #print("%s:%s" %(text,"|".join(phrases)))
+        for item in phrases: 
+            if item in ph_freq:
+              ph_freq[item] += 1
+            else:
+              ph_freq[item] = 1
+    
+    ph_freq_s = sort_by_value(ph_freq)
+    print(ph_freq_s)
+    """
+#for i in range(1,4):
+#    file_patten = '2020-%02i-*.jsonl' %(i)
+#    print("2020/%02i key words = %s" % (i,title_freq(file_patten)))  
+
+#%% Main test function
 producers_df = load_json('producers.jsonl')
 producers_df = producers_df.drop(['classification', 'canonical_url', 'licenses','languages',
        'first_seen_at', 'last_updated_at', 'followership'],axis=1) 
@@ -111,4 +159,3 @@ group by q.producer_id order by cnt
 
 qarchive0_df= ps.sqldf(query_str, locals())
 plot_test(qarchive0_df,"March article count by producer_id")
-
