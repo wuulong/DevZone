@@ -32,7 +32,7 @@ m1_df= ps.sqldf(query_str, locals())
 print(m1_df.head(2))
 
 #找某一天，某一個月
-query_str = """SELECT *,strftime('%Y-%m-%d',時間) 日期 FROM power_df where 日期='2020-04-15'"""
+query_str = """SELECT *,strftime('%Y-%m-%d',時間) 日期 FROM power_df where 日期='2020-04-17'"""
 m1_df= ps.sqldf(query_str, locals())
 print(m1_df.head(2))
 
@@ -43,7 +43,7 @@ print(m2_df.head(2))
 
 #輸出成 csv
 m1_df = m1_df.drop(['日期'], axis=1) #有需要的話，可以刪除過程中長出的欄位
-m1_df.to_csv('power_20200415.csv')
+m1_df.to_csv('power_20200417.csv')
 
 #%%
 # 

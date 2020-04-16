@@ -21,27 +21,37 @@ def find(pattern, path):
 #%% 0archive load json
 
 def load_json(filename,exists):
-    print(filename)
-    with open(filename , 'r', encoding='UTF-8') as json_file:
-        data = json.load(json_file)
-    #print(data)
-    data_date = data['']
-    csvs = []
-    if not data_date in exists:
-        exists[data_date]=1
-        aaData = data['aaData']
-        for item in aaData:
-            if not item[1]=='小計':
-                csvs.append("%s,%s,%s,%s,%s,%s,%s" % (data_date,item[0],item[1],item[2],item[3],item[4],item[5]))
-    return "\n".join(csvs)
+    try:
+        data_date = ""
+        with open(filename , 'r', encoding='UTF-8') as json_file:
+            data = json.load(json_file)
+        #print(data)
+        data_date = data['']
+        print("%s:%s" %(filename,data_date))
+        csvs = []
+        if not data_date in exists:
+            exists[data_date]=1
+            aaData = data['aaData']
+            for item in aaData:
+                if not item[1]=='小計':
+                    csvs.append("%s,%s,%s,%s,%s,%s,%s" % (data_date,item[0],item[1],item[2],item[3],item[4],item[5]))
+        return "\n".join(csvs)
+    except:
+        print("%s:%s" %(filename,"EXCEPTION!"))
+        return None
 #%% can handle duplicate file
 def load_jsons(filenames):
     df_all = None
     first = True
     csv_lines = "時間,類別,機組名稱,裝置容量,淨發電量,容量比,備註\n"
     exists = {}
+    ok = 0
     for filename in filenames:
-        csv_lines += load_json(filename,exists) + "\n"
+        lines = load_json(filename,exists)
+        if lines:
+            csv_lines += lines + "\n"
+            ok += 1
+    print("pass rate : %s/%s=%.1f%%" %(ok,len(filenames), float(ok)/len(filenames)*100))
     return csv_lines
 #%%
 filenames = find('001.*', '.') 
