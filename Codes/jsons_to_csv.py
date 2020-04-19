@@ -35,6 +35,8 @@ def load_json(filename,exists):
             for item in aaData:
                 if not item[1]=='小計':
                     csvs.append("%s,%s,%s,%s,%s,%s,%s" % (data_date,item[0],item[1],item[2],item[3],item[4],item[5]))
+        if len(csvs)==0:
+            print("Already Exist!")
         return "\n".join(csvs)
     except:
         print("%s:%s" %(filename,"EXCEPTION!"))
