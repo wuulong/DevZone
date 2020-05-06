@@ -132,7 +132,7 @@ def dump_root(root,filename):
     if filename != "":
         # 開啟檔案
         fp = open(filename, "w",encoding='UTF-8')
-        fp.write("id,level,link,child,pid,name,ename,memo,text\n")
+        fp.write("id|level|link|child|pid|name|ename|memo|text\n")
 
     for pid in root.keys():
         result = root[pid][2]
@@ -145,16 +145,16 @@ def dump_root(root,filename):
             else:
                 link_str = id
             if filename != "":
-                fp.write("%s,%i,%s,%s,%s,%s,%s,%s,%s\n" %(id,level,link_str, child,pid,name,ename, memo, text))
+                fp.write("%s|%i|%s|%s|%s|%s|%s|%s|%s\n" %(id,level,link_str, child,pid,name,ename, memo, text))
             else:
-                print("id=%s,level=%i,link=%s,child=%s,pid=%s,name=%s,ename=%s, memo=%s, text=%s" %(id,level,link_str,child,pid,name,ename, memo, text))
+                print("id=%s|level=%i|link=%s|child=%s|pid=%s|name=%s|ename=%s|memo=%s|text=%s" %(id,level,link_str,child,pid,name,ename, memo, text))
 
     if filename != "":
         fp.close()
 #%% 設定/取得/輸出
 #oid='71004010012'
-#bt = BioTree('7',1,"7") #處理的ID, 第幾層（界為第一層），從上到此層的結構（如維管束植物門為 7-710） ，此例為植物界
-bt = BioTree('0',0,"") #此例為全部
+bt = BioTree('7',1,"7") #處理的ID, 第幾層（界為第一層），從上到此層的結構（如維管束植物門為 7-710） ，此例為植物界
+#bt = BioTree('0',0,"") #此例為全部
 #bt = BioTree('1',3,"1-0-0") #病毒是特例
 #bt = BioTree('7100402',1,"7-710-71004-7100402") #處理的ID, 第幾層（界為第一層），從上到此層的結構（如維管束植物門為 7-710） ，此例為植物界
 #bt = BioTree('1',1,"1") #處理的ID, 第幾層（界為第一層），從上到此層的結構（如維管束植物門為 7-710） ，此例為植物界
