@@ -61,7 +61,9 @@ def parse_xml(filename):
         for item in root.findall(dataname):
             id = item.attrib['id']
             child = item.attrib['child']
-            text = item.attrib['text']
+            text_tmp = item.attrib['text']
+            #text = text_tmp
+            text = text_tmp.replace(chr(160),' ') #(C2) A0-> 0x20
             #m = re.search('(\S+)\s+(.*)<font.*>(.*)</font>',text)
             #print("child=%s,id=%s,name=%s,ename=%s,memo=%s,text=%s" %(child,id,m.group(1),m.group(2),m.group(3).strip(),text))
             result.append([id,child,text])
@@ -84,12 +86,17 @@ def get_id(id):
 
 #%% 將 item 中的 text, 取出名稱，英文學名， memo
 def parse_text(id,child,text):
+    #print("parse_txt id=%s" %(id))
     if child=='1':
         m = re.search('(\S+)\s+(.*)<font.*>(.*)</font>',text)
-        name = m.group(1)
-        ename = m.group(2).replace('<i>','').replace('</i>','')
-        memo = m.group(3).strip()
-        #print("child=%s,id=%s,name=%s,ename=%s,memo=%s,text=%s" %(child,id,name,ename,memo,text))
+        if m:
+            name = m.group(1)
+            ename = m.group(2).replace('<i>','').replace('</i>','')
+            memo = m.group(3).strip()
+            #print("child=%s,id=%s,name=%s,ename=%s,memo=%s,text=%s" %(child,id,name,ename,memo,text))
+        else:
+            print('Exception parse_text: id=%s' % (id) )
+            return [id, child, '', '', '']
     else:
         if text[0]=='<':
             m = re.search('(.*)<font.*>(.*)</font>',text)
@@ -146,8 +153,14 @@ def dump_root(root,filename):
         fp.close()
 #%% 設定/取得/輸出
 #oid='71004010012'
+#bt = BioTree('7',1,"7") #處理的ID, 第幾層（界為第一層），從上到此層的結構（如維管束植物門為 7-710） ，此例為植物界
 bt = BioTree('0',0,"") #此例為全部
-#bt = BioTree('1',3,"1-0-0") #處理的ID, 第幾層（界為第一層），從上到此層的結構（如維管束植物門為 7-710） ，此例為植物界
-#bt = BioTree('7',1,"7) #處理的ID, 第幾層（界為第一層），從上到此層的結構（如維管束植物門為 7-710） ，此例為植物界
+#bt = BioTree('1',3,"1-0-0") #病毒是特例
+#bt = BioTree('7100402',1,"7-710-71004-7100402") #處理的ID, 第幾層（界為第一層），從上到此層的結構（如維管束植物門為 7-710） ，此例為植物界
+#bt = BioTree('1',1,"1") #處理的ID, 第幾層（界為第一層），從上到此層的結構（如維管束植物門為 7-710） ，此例為植物界
+
 travel_id(bt.root_id,bt.root_level,bt.root_link,bt.root, True)
 dump_root(bt.root,"biotree.csv")
+#dump_root(bt.root,"")
+
+
