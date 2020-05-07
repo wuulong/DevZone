@@ -1,0 +1,466 @@
+// BioTree Analyze
+digraph {
+	7 [label="植物界
+Kingdom Plantae"]
+	710 [label="維管束植物門
+Phylum Tracheophyta"]
+	71003 [label="木蘭綱
+Class Magnoliopsida"]
+	7100303 [label="胡椒目
+Order Piperales"]
+	7100303003 [label="三白草科
+Family Saururaceae"]
+	71003030031 [label="蕺菜屬
+Genus Houttuynia"]
+	203854000 [label="蕺菜
+Houttuynia cordata"]
+	7100305 [label="樟目
+Order Laurales"]
+	7100305002 [label="樟科
+Family Lauraceae"]
+	710030500212 [label="鱷梨屬
+Genus Persea"]
+	418171000 [label="酪梨
+Persea americana"]
+	7100308 [label="澤瀉目
+Order Alismatales"]
+	7100308003 [label="天南星科
+Family Araceae"]
+	71003080037 [label="芋屬
+Genus Colocasia"]
+	201146000 [label="芋
+Colocasia esculenta"]
+	710030800323 [label="浮萍屬
+Genus Spirodela"]
+	201172000 [label="水萍
+Spirodela polyrhiza"]
+	7100313 [label="天門冬目
+Order Asparagales"]
+	7100313003 [label="阿福花科
+Family Asphodelaceae"]
+	71003130031 [label="蘆薈屬
+Genus Aloe"]
+	425243000 [label="吉拉索蘆薈
+Aloe vera"]
+	7100316 [label="薑目
+Order Zingiberales"]
+	7100316005 [label="芭蕉科
+Family Musaceae"]
+	71003160052 [label="芭蕉屬
+Genus Musa"]
+	418391000 [label="香蕉
+Musa acuminata"]
+	7100316007 [label="薑科
+Family Zingiberaceae"]
+	71003160073 [label="蝴蝶薑屬
+Genus Hedychium"]
+	202279000 [label="穗花山奈
+Hedychium coronarium"]
+	7100317 [label="禾本目
+Order Poales"]
+	7100317006 [label="禾本科
+Family Poaceae"]
+	710031700649 [label="穇屬
+Genus Eleusine"]
+	201499000 [label="牛筋草
+Eleusine indica"]
+	7100317006109 [label="蘆葦屬
+Genus Phragmites"]
+	201639000 [label="蘆葦
+Phragmites australis"]
+	7100317006119 [label="甘蔗屬
+Genus Saccharum"]
+	201666000 [label="秀貴甘蔗
+Saccharum officinarum"]
+	7100317007 [label="香蒲科
+Family Typhaceae"]
+	71003170072 [label="香蒲屬
+Genus Typha"]
+	202258000 [label="水燭
+Typha angustifolia"]
+	7100327 [label="豆目
+Order Fabales"]
+	7100327001 [label="豆科
+Family Fabaceae"]
+	710032700140 [label="刺桐屬
+Genus Erythrina"]
+	418311000 [label="雞冠刺桐
+Erythrina crista-galli"]
+	7100328 [label="薔薇目
+Order Rosales"]
+	7100328003 [label="桑科
+Family Moraceae"]
+	71003280034 [label="榕屬
+Genus Ficus"]
+	418071000 [label="無花果
+Ficus carica"]
+	204845000 [label="榕樹
+Ficus microcarpa"]
+	7100328006 [label="榆科
+Family Ulmaceae"]
+	71003280062 [label="櫸屬
+Genus Zelkova"]
+	204885000 [label="櫸
+Zelkova serrata"]
+	7100333 [label="黃褥花目
+Order Malpighiales"]
+	7100333008 [label="黃褥花科
+Family Malpighiaceae"]
+	71003330082 [label="金虎尾屬
+Genus Malpighia"]
+	203866000 [label="黃褥花
+Malpighia glabra"]
+	7100333009 [label="西番蓮科
+Family Passifloraceae"]
+	71003330092 [label="西番蓮屬
+Genus Passiflora"]
+	204995000 [label="西番蓮
+Passiflora edulis"]
+	7100333010 [label="葉下珠科
+Family Phyllanthaceae"]
+	71003330108 [label="油柑屬
+Genus Phyllanthus"]
+	203018000 [label="葉下珠
+Phyllanthus urinaria"]
+	7100335 [label="桃金孃目
+Order Myrtales"]
+	7100335004 [label="桃金孃科
+Family Myrtaceae"]
+	71003350047 [label="番石榴屬
+Genus Psidium"]
+	427628000 [label="番石榴
+Psidium guajava"]
+	7100335005 [label="柳葉菜科
+Family Onagraceae"]
+	71003350055 [label="待宵草屬
+Genus Oenothera"]
+	203793000 [label="月見草
+Oenothera biennis"]
+	7100338 [label="無患子目
+Order Sapindales"]
+	7100338001 [label="漆樹科
+Family Anacardiaceae"]
+	71003380013 [label="檬果屬
+Genus Mangifera"]
+	418294000 [label="檬果
+Mangifera indica"]
+	7100338004 [label="芸香科
+Family Rutaceae"]
+	710033800410 [label="月橘屬
+Genus Murraya"]
+	204460000 [label="千里香
+Murraya paniculata"]
+	7100338005 [label="無患子科
+Family Sapindaceae"]
+	71003380054 [label="龍眼屬
+Genus Dimocarpus"]
+	419553000 [label="龍眼
+Dimocarpus longan"]
+	71003380058 [label="荔枝屬
+Genus Litchi"]
+	204485000 [label="荔枝
+Litchi chinensis"]
+	710033800512 [label="無患子屬
+Genus Sapindus"]
+	204487000 [label="無患子
+Sapindus mukorossi"]
+	7100339 [label="錦葵目
+Order Malvales"]
+	7100339001 [label="錦葵科
+Family Malvaceae"]
+	71003390011 [label="秋葵屬
+Genus Abelmoschus"]
+	418118000 [label="黃秋葵
+Abelmoschus esculentus"]
+	710033900116 [label="木槿屬
+Genus Hibiscus"]
+	418392000 [label="朱槿
+Hibiscus rosa-sinensis"]
+	7100340 [label="十字花目
+Order Brassicales"]
+	7100340002 [label="十字花科
+Family Brassicaceae"]
+	710034000214 [label="萊服屬
+Genus Raphanus"]
+	418340000 [label="蘿蔔
+Raphanus sativus"]
+	7100340004 [label="番木瓜科
+Family Caricaceae"]
+	71003400041 [label="番木瓜屬
+Genus Carica"]
+	429826000 [label="番木瓜
+Carica papaya"]
+	7100342 [label="石竹目
+Order Caryophyllales"]
+	7100342002 [label="莧科
+Family Amaranthaceae"]
+	710034200216 [label="Genus
+Rhinacanthus"]
+	433425000 [label="仙鶴草
+Rhinacanthus nasutus"]
+	7100342003 [label="落葵科
+Family Basellaceae"]
+	71003420032 [label="落葵屬
+Genus Basella"]
+	202686000 [label="落葵
+Basella alba"]
+	7100347 [label="龍膽目
+Order Gentianales"]
+	7100347004 [label="茜草科
+Family Rubiaceae"]
+	71003470046 [label="咖啡屬
+Genus Coffea"]
+	417737000 [label="咖啡
+Coffea arabica"]
+	7100348 [label="紫草目
+Order Boraginales"]
+	7100348001 [label="紫草科
+Family Boraginaceae"]
+	71003480015 [label="聚合草屬
+Genus Symphytum"]
+	418002000 [label="康復力
+Symphytum officinale"]
+	7100349 [label="茄目
+Order Solanales"]
+	7100349001 [label="旋花科
+Family Convolvulaceae"]
+	71003490018 [label="牽牛花屬
+Genus Ipomoea"]
+	204672000 [label="甕菜
+Ipomoea aquatica"]
+	204673000 [label="甘藷
+Ipomoea batatas"]
+	7100349003 [label="茄科
+Family Solanaceae"]
+	71003490033 [label="辣椒屬
+Genus Capsicum"]
+	204711000 [label="辣椒
+Capsicum annuum"]
+	710034900314 [label="茄屬
+Genus Solanum"]
+	204724000 [label="光果龍葵
+Solanum americanum"]
+	204732000 [label="茄
+Solanum melongena"]
+	7100350 [label="唇形目
+Order Lamiales"]
+	7100350004 [label="唇形科
+Family Lamiaceae"]
+	710035000423 [label="薄荷屬
+Genus Mentha"]
+	203503000 [label="薄荷
+Mentha canadensis"]
+	710035000426 [label="羅勒屬
+Genus Ocimum"]
+	203508000 [label="羅勒
+Ocimum basilicum"]
+	7100350008 [label="木犀科
+Family Oleaceae"]
+	71003500083 [label="素英屬
+Genus Jasminum"]
+	417911000 [label="茉莉
+Jasminum sambac"]
+	71003500085 [label="木犀屬
+Genus Osmanthus"]
+	417944000 [label="桂花
+Osmanthus fragrans"]
+	7100352 [label="菊目
+Order Asterales"]
+	7100352002 [label="菊科
+Family Asteraceae"]
+	710035200226 [label="菊苣屬
+Genus Cichorium"]
+	202427000 [label="菊苣
+Cichorium intybus"]
+	710035200257 [label="三七草屬
+Genus Gynura"]
+	202499000 [label="紅鳳菜
+Gynura bicolor"]
+	7100354 [label="繖形目
+Order Apiales"]
+	7100354001 [label="繖形科
+Family Apiaceae"]
+	710035400111 [label="胡蘿蔔屬
+Genus Daucus"]
+	417909000 [label="胡蘿蔔
+Daucus carota"]
+	8 [label="動物界
+Kingdom Animalia"]
+	808 [label="節肢動物門
+Phylum Arthropoda"]
+	80806 [label="昆蟲綱
+Class Insecta"]
+	8080618 [label="鱗翅目
+Order Lepidoptera"]
+	8080618027 [label="裳蛾科
+Family Erebidae"]
+	8080618027254 [label="Genus
+Perina"]
+	345901000 [label="nan
+Perina nuda"]
+	818 [label="脊索動物門
+Phylum Chordata"]
+	81807 [label="兩生綱
+Class Amphibia"]
+	8180702 [label="無尾目
+Order Anura"]
+	8180702001 [label="蟾蜍科
+Family Bufonidae"]
+	81807020012 [label="Genus
+Duttaphrynus"]
+	416157000 [label="黑眶蟾蜍
+Duttaphrynus melanostictus"]
+	7 -> 710
+	710 -> 71003
+	71003 -> 7100303
+	7100303 -> 7100303003
+	7100303003 -> 71003030031
+	71003030031 -> 203854000
+	71003 -> 7100305
+	7100305 -> 7100305002
+	7100305002 -> 710030500212
+	710030500212 -> 418171000
+	71003 -> 7100308
+	7100308 -> 7100308003
+	7100308003 -> 71003080037
+	71003080037 -> 201146000
+	7100308003 -> 710030800323
+	710030800323 -> 201172000
+	71003 -> 7100313
+	7100313 -> 7100313003
+	7100313003 -> 71003130031
+	71003130031 -> 425243000
+	71003 -> 7100316
+	7100316 -> 7100316005
+	7100316005 -> 71003160052
+	71003160052 -> 418391000
+	7100316 -> 7100316007
+	7100316007 -> 71003160073
+	71003160073 -> 202279000
+	71003 -> 7100317
+	7100317 -> 7100317006
+	7100317006 -> 710031700649
+	710031700649 -> 201499000
+	7100317006 -> 7100317006109
+	7100317006109 -> 201639000
+	7100317006 -> 7100317006119
+	7100317006119 -> 201666000
+	7100317 -> 7100317007
+	7100317007 -> 71003170072
+	71003170072 -> 202258000
+	71003 -> 7100327
+	7100327 -> 7100327001
+	7100327001 -> 710032700140
+	710032700140 -> 418311000
+	71003 -> 7100328
+	7100328 -> 7100328003
+	7100328003 -> 71003280034
+	71003280034 -> 418071000
+	71003280034 -> 204845000
+	7100328 -> 7100328006
+	7100328006 -> 71003280062
+	71003280062 -> 204885000
+	71003 -> 7100333
+	7100333 -> 7100333008
+	7100333008 -> 71003330082
+	71003330082 -> 203866000
+	7100333 -> 7100333009
+	7100333009 -> 71003330092
+	71003330092 -> 204995000
+	7100333 -> 7100333010
+	7100333010 -> 71003330108
+	71003330108 -> 203018000
+	71003 -> 7100335
+	7100335 -> 7100335004
+	7100335004 -> 71003350047
+	71003350047 -> 427628000
+	7100335 -> 7100335005
+	7100335005 -> 71003350055
+	71003350055 -> 203793000
+	71003 -> 7100338
+	7100338 -> 7100338001
+	7100338001 -> 71003380013
+	71003380013 -> 418294000
+	7100338 -> 7100338004
+	7100338004 -> 710033800410
+	710033800410 -> 204460000
+	7100338 -> 7100338005
+	7100338005 -> 71003380054
+	71003380054 -> 419553000
+	7100338005 -> 71003380058
+	71003380058 -> 204485000
+	7100338005 -> 710033800512
+	710033800512 -> 204487000
+	71003 -> 7100339
+	7100339 -> 7100339001
+	7100339001 -> 71003390011
+	71003390011 -> 418118000
+	7100339001 -> 710033900116
+	710033900116 -> 418392000
+	71003 -> 7100340
+	7100340 -> 7100340002
+	7100340002 -> 710034000214
+	710034000214 -> 418340000
+	7100340 -> 7100340004
+	7100340004 -> 71003400041
+	71003400041 -> 429826000
+	71003 -> 7100342
+	7100342 -> 7100342002
+	7100342002 -> 710034200216
+	710034200216 -> 433425000
+	7100342 -> 7100342003
+	7100342003 -> 71003420032
+	71003420032 -> 202686000
+	71003 -> 7100347
+	7100347 -> 7100347004
+	7100347004 -> 71003470046
+	71003470046 -> 417737000
+	71003 -> 7100348
+	7100348 -> 7100348001
+	7100348001 -> 71003480015
+	71003480015 -> 418002000
+	71003 -> 7100349
+	7100349 -> 7100349001
+	7100349001 -> 71003490018
+	71003490018 -> 204672000
+	71003490018 -> 204673000
+	7100349 -> 7100349003
+	7100349003 -> 71003490033
+	71003490033 -> 204711000
+	7100349003 -> 710034900314
+	710034900314 -> 204724000
+	710034900314 -> 204732000
+	71003 -> 7100350
+	7100350 -> 7100350004
+	7100350004 -> 710035000423
+	710035000423 -> 203503000
+	7100350004 -> 710035000426
+	710035000426 -> 203508000
+	7100350 -> 7100350008
+	7100350008 -> 71003500083
+	71003500083 -> 417911000
+	7100350008 -> 71003500085
+	71003500085 -> 417944000
+	71003 -> 7100352
+	7100352 -> 7100352002
+	7100352002 -> 710035200226
+	710035200226 -> 202427000
+	7100352002 -> 710035200257
+	710035200257 -> 202499000
+	71003 -> 7100354
+	7100354 -> 7100354001
+	7100354001 -> 710035400111
+	710035400111 -> 417909000
+	8 -> 808
+	808 -> 80806
+	80806 -> 8080618
+	8080618 -> 8080618027
+	8080618027 -> 8080618027254
+	8080618027254 -> 345901000
+	8 -> 818
+	818 -> 81807
+	81807 -> 8180702
+	8180702 -> 8180702001
+	8180702001 -> 81807020012
+	81807020012 -> 416157000
+}
