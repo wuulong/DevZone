@@ -22,8 +22,9 @@ def water_quality(start_str, end_str):
     #global df_all
     df_all = None 
     while True:
-        url =  "https://opendata.epa.gov.tw/webapi/api/rest/datastore/355000000I-001255?filters=SampleDate ge '%s' and SampleDate lt '%s' &sort=SampleDate&offset=%i&limit=1000&format=csv" % (start_str, end_str, offset) 
-   
+        #url =  "https://opendata.epa.gov.tw/webapi/api/rest/datastore/355000000I-001255?filters=SampleDate ge '%s' and SampleDate lt '%s' &sort=SampleDate&offset=%i&limit=1000&format=csv" % (start_str, end_str, offset) 
+        #url = "http://opendata.epa.gov.tw/webapi/Data/WQXRiver/?$filter=ItemName%20eq%20%27%E6%B2%B3%E5%B7%9D%E6%B1%A1%E6%9F%93%E5%88%86%E9%A1%9E%E6%8C%87%E6%A8%99%27&$orderby=SampleDate%20desc&$skip=%i&$top=1000&format=csv" %(offset)
+        url = "https://opendata.epa.gov.tw/webapi/api/rest/datastore/355000000I-001255?filters=ItemName eq '河川污染分類指標'&sort=SampleDate&offset=%i&limit=1000&format=csv" %(offset)
         file_datestr = "output/WaterQuality_%s_%s" %(start_str,end_str)
         filename = "%s_%04i.csv" %(file_datestr,offset)
 
@@ -38,7 +39,7 @@ def water_quality(start_str, end_str):
                 print("Exception when process %s, retrying after 60s" %(filename))
                 if os.path.isfile(filename):
                     os.remove(filename)
-                time.sleep(10)
+                time.sleep(60)
         
         if offset>0:
             df_all = pd.concat([df_all,df])
@@ -61,4 +62,50 @@ def url_get(filename,url):
         t2 = datetime.now()
         print("[%s]-%s" %(t2-t1,filename))
 
-water_quality('2020-06-01','2020-07-01')
+
+#%%
+# generate value diff field 
+def proc_diff():
+    filename = "output/WaterQuality_1950-01-01_2020-12-31.csv"
+    df = pd.read_csv(filename)
+    df_sorted = df.sort_values(by=['County','SiteName','SampleDate'])
+    sitename_prev = ""
+    value_prev = 0
+    valid_prev = True
+    for index, row in df_sorted.iterrows():
+        
+        valid=True
+        if row['ItemValue'] =='-':
+            valid = False
+        else:
+            try:
+                value = float(row['ItemValue'])
+            except:
+                value = 0
+        
+        
+        if row['SiteName']!= sitename_prev:
+            diff_value = 0
+            sitename_prev = row['SiteName']
+            
+        else:
+            if valid==False or value_prev==False:
+                diff_value = 0
+            else:
+                diff_value = value - value_prev
+        
+        value_prev = value
+        valid_prev = valid
+        
+        #row['ValueDiff']=diff_value
+        df_sorted.loc[index, 'ValueDiff'] = diff_value
+        #print("%s-%s" %(index,row))
+
+    df_sorted.to_csv("output/WaterQuality_1950-01-01_2020-12-31_diff.csv")
+proc_diff()
+#water_quality('2020-06-01','2020-07-01')
+#print("Start time: %s " %(datetime.now()))
+#water_quality('2019-07-01','2020-07-01')
+#water_quality('1950-01-01','2020-12-31')
+#water_quality('2020-06-01','2020-07-01')
+#print("End time: %s " %(datetime.now()))
