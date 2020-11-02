@@ -11,6 +11,9 @@ import zipfile
 import re
 from urllib.parse import quote
 import pandas as pd 
+import requests
+import json
+import time
 
 #%% load file contents to lines
 def file_to_lines(pathname):
@@ -19,7 +22,104 @@ def file_to_lines(pathname):
     lines = fo.read().splitlines()
     fo.close()
     return lines
-#%% 
+
+def url_get(filename,url):
+    """
+        get url to file
+    """
+    print("filename=%s,url=%s" %(filename,url))
+    if not os.path.isfile(filename):
+        r = requests.get(url, params = {})
+        open(filename, 'wb').write(r.content)
+        
+def load_json(filename,case_id=0):
+    """
+        load json file and transfer to panda
+        hardcode: handle json with data in 'data'  
+        
+    """
+    with open(filename, 'r') as json_file:
+        data_head = json.load(json_file)
+    
+    if case_id==1: # DrainageReport
+        #may need to change related to data.
+        data = data_head['Data']['FileList']
+    else:
+        data = data_head
+
+    if len(data)>0:
+        cols = data[0].keys()
+    else:
+        return None
+        
+    
+    out = []
+    for row in data:
+        item = []
+        for c in cols:
+            item.append(row.get(c, {}))
+        out.append(item)
+
+    return pd.DataFrame(out, columns=cols)
+
+def DrainageReport():
+    """
+        generate drainage report
+    """
+    page = 1 
+    
+    #global df_all
+    df_all = None 
+    """
+All
+https://rdi-123.wrap.gov.tw/Integration_WRPI_Drainage/FuncModule/Drainage_2018/DrainageReport.ashx?cmd=public&exist=1&coun=&key=&limit=100
+
+中央管區域排水
+https://rdi-123.wrap.gov.tw/Integration_WRPI_Drainage/FuncModule/Drainage_2018/DrainageReport.ashx?cmd=public&exist=1&level=%u4E2D%u592E%u7BA1%u5340%u57DF%u6392%u6C34&coun=&key=&limit=100
+
+直轄市管區域排水
+https://rdi-123.wrap.gov.tw/Integration_WRPI_Drainage/FuncModule/Drainage_2018/DrainageReport.ashx?cmd=public&exist=1&level=%u76F4%u8F44%u5E02%u7BA1%u5340%u57DF%u6392%u6C34&coun=&key=&limit=100
+
+縣市管區域排水
+https://rdi-123.wrap.gov.tw/Integration_WRPI_Drainage/FuncModule/Drainage_2018/DrainageReport.ashx?cmd=public&exist=1&level=%u7E23%u5E02%u7BA1%u5340%u57DF%u6392%u6C34&coun=&key=&limit=100
+
+市區排水
+https://rdi-123.wrap.gov.tw/Integration_WRPI_Drainage/FuncModule/Drainage_2018/DrainageReport.ashx?cmd=public&exist=1&level=%u5E02%u5340%u6392%u6C34&coun=&key=&limit=100
+
+    """
+    while True:
+        urlbase = "https://rdi-123.wrap.gov.tw/Integration_WRPI_Drainage/FuncModule/Drainage_2018/DrainageReport.ashx?cmd=public&exist=1&coun=&key=&limit=100"
+        url = "%s&page=%i" %(urlbase,page)
+        file_datestr = "output/DrainageReport"
+        filename = "%s_%04i.json" %(file_datestr,page)
+
+        cont = True
+        while cont:
+            try:
+                url_get(filename, url)
+                df = load_json(filename,1)
+                #df = pd.read_csv(filename) 
+                
+                cont = False
+            except:
+                print("Exception when process %s, retrying after 60s" %(filename))
+                if os.path.isfile(filename):
+                    os.remove(filename)
+                time.sleep(60)
+        
+        if page>1:
+            df_all = pd.concat([df_all,df])
+        else:
+            df_all = df
+        page += 1
+        if len(df.index)<100: # check if the last recoord
+        #if page > 3:
+            break
+    filename = "%s.csv" %(file_datestr)
+    print("%s saved" %(filename))
+    df_all.to_csv(filename)
+
+#%% diff 2 set 
 def set_diff():
     #lines1=file_to_lines("/Users/wuulong/Downloads/river_id-rivercode.csv")
     #lines2=file_to_lines("/Users/wuulong/Downloads/river_code-riverpoly.csv")
@@ -33,7 +133,7 @@ def set_diff():
 
 #%% formated output
 def shp_tosql():
-    lines=file_to_lines("/tmp/shps.txt")
+    lines=file_to_lines("shp.txt")
     for line in lines:
         #print(line,end = '')
         basename = os.path.basename(line)
@@ -53,6 +153,7 @@ def csvlist_to_pyqgis():
     #dataset_id    架構分類
     for line in lines:
         #print(line,end = '')
+        #print("line=%s" %(line))
         basename = os.path.basename(line)
         
         base = os. path. splitext(basename)[0]
@@ -142,3 +243,15 @@ def walk_dir(search_dir):
 #out_tmp3(zip_file)
 #unzip_zips_indir("/Users/wuulong/MakerBk/QGIS/projects/wra_opendata")
 #gen_pyqgis_script()
+#csvlist_to_pyqgis()
+#gen_pyqgis_script()
+DrainageReport()
+"""
+url='https://data.coa.gov.tw/service/opendata/OpenDataServiceList.aspx'
+file_in = 'output/coa_opendata.json'
+file_out = 'output/coa_opendata.csv'
+url_get(file_in,url)
+df = load_json(file_in)
+df.to_csv(file_out)
+"""
+
