@@ -7,6 +7,7 @@
 #    pertype info, monitor id, maxnodes test
 #    support networkx, monitor per-node rate
 #    support rssi capacity, estimate distance
+#    plot sensor information history
 #Default:
 #    ask end point report number by sequence
 #    115200,N81
@@ -27,14 +28,22 @@ from serial import *
 import time
 import sys
 import cmd
+from datetime import datetime
 
-
-ser_name = '/dev/cu.usbmodem1412'
-VERSION = "0.5.2"
+ser_name = '/dev/cu.usbmodem142402' #different environment may changed
+VERSION = "0.6"
 
 dm = None
 cli = None
 th = None
+
+IDX_VISCNT=0
+IDX_LOGO=1
+IDX_LIGHT=2
+IDX_SOUND=3
+IDX_A_X=4
+IDX_A_Y=5
+IDX_A_Z=6
 
 def mymap(x, in_min, in_max, out_min, out_max):
     value = int((x-in_min) * (out_max-out_min) / (in_max-in_min) + out_min)
@@ -84,6 +93,7 @@ def test_estimate():
         sleep(10000)
 
 
+# V1 experience, V2 hardware seems different
 cal_cm=50
 cal_rssi=-76.0
 
@@ -103,8 +113,8 @@ range_ref = [
     [ 300 , -93.7 ]]
 
 
-
 class Node():
+
     def __init__(self,id):
         self.id = id
         self.last_rx = 0
@@ -112,6 +122,8 @@ class Node():
         self.cs = False
         self.tinfo = {} #pertype infor, type as id, content [], ex: 20->[number]
         self.rssis = {} #remote node id as key, content rssi
+        self.sensing = [] # sensing information, from visibility_cnt
+        self.sensing_his = [] # sensing history, key = now()
     #l3: [] for l3 information, ex [1,20,number]
     def rx_update(self,l3):
         self.last_rx = time.time()
@@ -119,9 +131,13 @@ class Node():
         if len(l3)>=2:
             tid = int(l3[1])
             self.tinfo[tid] = l3[2:]
-            if tid== 1 or tid==2:
+            if tid== 1 or tid==2 or tid==3:
                 self.ms = int(l3[2])
                 self.cs = int(l3[3])
+            if tid==3: #visibility_cnt, int(pin_logo.is_touched()),di.read_light_level(),microphone.sound_level(),a_x,a_y,a_z
+                self.sensing = l3[4:] 
+                now = datetime.now()
+                self.sensing_his.append([now,self.sensing])
             if tid==11:
                 self.rssis[int(l3[2])] = int(l3[3])
             #rssi handler, type=11
@@ -130,12 +146,27 @@ class Node():
     def desc(self):
         t_now = time.time()
         txt = "node ID=%2i, last_rx=%2.3f s,ms=%i,cs=%i" %(self.id,self.last_rx - t_now,self.ms,self.cs)
-        for id in self.tinfo.keys():
+        keys = self.tinfo.keys()
+        #desc sensor information
+        for id in sorted(keys):
             txt +="\n\ttype[%i]=%s" %(id,self.tinfo[id])
-        for id in self.rssis.keys():
+        sensing_str = "\n\tSensing:VISCNT=%s,LOGO=%s,LIGHT=%s,SOUND=%s,A_X=%s,A_Y=%s,A_Z=%s" % (self.sensing[IDX_VISCNT],self.sensing[IDX_LOGO],self.sensing[IDX_LIGHT],self.sensing[IDX_SOUND],self.sensing[IDX_A_X],self.sensing[IDX_A_Y],self.sensing[IDX_A_Z])
+        txt += sensing_str
+        #desc rssi, range information
+        keys = self.rssis.keys()
+        for id in sorted(keys):
             rssi = self.rssis[id] 
             cm = estimate_distance(rssi,range_ref)
             txt +="\n\trssi[%i]=%i -> %i cm" %(id,rssi,cm)
+        return txt
+    def sensing_his_clear(self):
+        self.sensing_his = []
+    def desc_sensing_his(self):
+        txt = ""
+        for v in self.sensing_his:
+            sensing = v[1]
+            sensing_str = "\nTIME=%s|NODE=%i,VISCNT=%s,LOGO=%s,LIGHT=%s,SOUND=%s,A_X=%s,A_Y=%s,A_Z=%s" % (v[0],self.id,sensing[IDX_VISCNT],sensing[IDX_LOGO],sensing[IDX_LIGHT],sensing[IDX_SOUND],sensing[IDX_A_X],sensing[IDX_A_Y],sensing[IDX_A_Z])
+            txt += sensing_str
         return txt
 # DM function
 class DM():
@@ -222,15 +253,17 @@ class DM():
         if dm.ready:
             str = "Domain nodes count=%i\nDM/broker ID=%i\n" %(dm.get_nodes_cnt(),dm.dmid)
             print(str)
-            for id in dm.nodes.keys():
+            keys = dm.nodes.keys()
+            for id in sorted(keys):
                 node = dm.nodes[id]
                 print(node.desc())
-            for key in dm.nn_cnt.keys():
+            keys = dm.nn_cnt.keys()
+            for key in sorted(keys):
                 nn = dm.nn_cnt[key]
                 ids = key.split("-")
                 print("%s->%s : %i,%i,%i" %(ids[0],ids[1],nn[0],nn[1],nn[2]))
         else:
-            print("DM not ready!")
+            print("broker not ready!")
         
     #l1 T/R=
     #l2 sid:did:1,type,pertype
@@ -238,6 +271,7 @@ class DM():
     def proc_record(self,rec):
         with open('dm.log', 'a') as log_file:
             log_file.write(rec)
+            log_file.write("\n")
         l1 = rec.split("=")
         if len(l1)==2:
             tr , l2_str = l1 
@@ -302,8 +336,19 @@ class DmCli(cmd.Cmd):
         """reset DM"""
         dm.reset()
     def do_dminfo(self,line):
-        """Show DM information"""
-        dm.desc()
+        """Show DM information every second with [cnt] time
+            dminfo [cnt]
+        """
+        if line.isnumeric():
+            cnt = int(line)
+            while cnt >0:
+                dm.desc()
+                cnt-=1
+                time.sleep(1)
+                
+                
+        else:
+            dm.desc()
 
     def wait_dm_ready(self):
         while dm.dmid==0:
@@ -391,15 +436,123 @@ class DmCli(cmd.Cmd):
         if line=="1":
             ani = an.FuncAnimation(fig, nx_update,init_func=nx_update, frames=6, interval=5000, repeat=False)
         plt.show()
-        
+    def do_sensing_his(self,line):
+        """show per node sensing history 
+            sensing_his [node_id] #0: all, c: clear history
+        """
+        if line == "c":
+            for id in  dm.nodes.keys():
+                node = dm.nodes[id]
+                node.sensing_his_clear()
+            return 
+        if line.isnumeric():
+            id = int(line)
+        else:
+            return 
+        if id==0:
+            for id in  dm.nodes.keys():
+                node = dm.nodes[id]
+                print(node.desc_sensing_his())
+        elif id in dm.nodes.keys():    
+            node = dm.nodes[id]
+            print(node.desc_sensing_his())
+    def do_sensing_plot(self,line):
+        """plot sensing history
+            
+            1. plot one node with all sensor 
+                sensing_plot [id] 
+            2. plot all node with one sensor
+                sensing_plot 0 [col_id]
+            3. plot all nodes
+                sensing_plot 0
+            4. plot one node with one sensor
+                sensing_plot [id] [col_id]
+            col_id : IDX_VISCNT=0,IDX_LOGO=1,IDX_LIGHT=2,IDX_SOUND=3,IDX_A_X=4,IDX_A_Y=5,IDX_A_Z=6
+        """
+        import matplotlib.pyplot as plt
+
+        cols = line.split()
+        if len(cols)==0:
+            return
+        id_input = int(cols[0])
+        #print("id_input = %i" %(id_input))
+        titles = ['VISCNT','LOGO','LIGHT','SOUND','A_X','A_Y','A_Z']
+        keys = dm.nodes.keys()
+        if len(cols)>1:
+            col_id = int(cols[1])
+            #print("need plot")
+            if id_input>0: # case 4
+                id = id_input
+                if id in sorted(keys):
+                    node = dm.nodes[id]
+                    sensing_his = node.sensing_his
+                
+                # plot this case
+                x_vals = list(range(len(sensing_his)))
+                v_y = [int(v[1][col_id]) for v in sensing_his]
+                fig, axarr =plt.subplots(1,1,sharex=True,figsize=(20, 10))
+                axarr.plot(x_vals,v_y)
+                axarr.set_title("%s" %(titles[col_id]))
+                fig.canvas.set_window_title('Node %s' %(id))
+                
+            else: #case 2
+                
+                v_ys = {}
+                v_xs = {}
+                for id in sorted(keys):
+                    node = dm.nodes[id]
+                    sensing_his = node.sensing_his
+                    x_vals = list(range(len(sensing_his)))
+                    v_xs[id]=x_vals
+                    v_y = [int(v[1][col_id]) for v in sensing_his]
+                    v_ys[id]=v_y
+                node_cnt = len(dm.nodes.keys())
+                fig, axarr =plt.subplots(node_cnt,1,sharex=True,figsize=(20, 10))
+                idx=0
+                for id in sorted(keys):
+                    axarr[idx].plot(v_xs[id],v_ys[id])
+                    axarr[idx].set_title("Node %s:%s" %(id,titles[col_id]))
+                    idx +=1
+                fig.canvas.set_window_title('All node: %s' %(titles[col_id]))
+                
+        else: #case 1,3
+            for id in sorted(keys):
+                node = dm.nodes[id]
+                sensing_his = node.sensing_his
+                if id_input>0 and id!=id_input:
+                    #print("id=%i" %(id))
+                    pass
+                else:
+                    #print("plot node %s" %(id))
+                    x_cnt=2
+                    y_cnt=4
+                    fig, axarr =plt.subplots(y_cnt,x_cnt,sharex=True,figsize=(20, 10))
+            
+                    x_vals = list(range(len(sensing_his)))
+                    
+                    for dy in range(y_cnt):
+                        for dx in range(x_cnt):
+                            idx = dy * x_cnt + dx
+                            if idx < len(titles):
+                                v_y = [int(v[1][idx]) for v in sensing_his]
+                                #axarr[dy][dx].scatter(x_vals,v_y)
+                                axarr[dy][dx].plot(x_vals,v_y)
+                                axarr[dy][dx].set_title("%s" %(titles[idx]))
+            
+            
+                    #fig.suptitle('Node %s , x-axis (s)' %(id), fontsize=16)
+                    fig.canvas.set_window_title('Node %s' %(id))
+
+                
+        plt.show()
     def demo1(self,show_num):
         sid = dm.sid
-        
+        dids = dm.nodes.keys()
         # send command here
-        for did in dm.nodes.keys():
+        for did in dids:
             th.serial_send("%i:%i:1,20,%i="%(sid,did,show_num)) 
             show_num+=1
-            time.sleep(1)
+            #time.sleep(1)
         
     def do_demo1(self,line):
         """Demo EP show number by sequence"""
@@ -518,15 +671,15 @@ def main():
     th.start()
        
     while 1:
-        try:
-            cli.cmdloop()
-            if cli.user_quit:
-                th.exit = True
-                break
-        except:
+        #try:
+        cli.cmdloop()
+        if cli.user_quit:
             th.exit = True
-            print("Exception!")
             break
+        #except:
+        #    th.exit = True
+        #    print("Exception!")
+        #    break
 
 if __name__ == "__main__":
     main()
