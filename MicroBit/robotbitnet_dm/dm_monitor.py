@@ -8,6 +8,7 @@
 #    support networkx, monitor per-node rate
 #    support rssi capacity, estimate distance
 #    plot sensor information history
+#    plot rssi history
 #Default:
 #    ask end point report number by sequence
 #    115200,N81
@@ -31,7 +32,7 @@ import cmd
 from datetime import datetime
 
 ser_name = '/dev/cu.usbmodem142402' #different environment may changed
-VERSION = "0.6"
+VERSION = "0.6.1"
 
 dm = None
 cli = None
@@ -122,6 +123,7 @@ class Node():
         self.cs = False
         self.tinfo = {} #pertype infor, type as id, content [], ex: 20->[number]
         self.rssis = {} #remote node id as key, content rssi
+        self.rssis_his = [] # rssi history, [now,remote_node_id,rssi]
         self.sensing = [] # sensing information, from visibility_cnt
         self.sensing_his = [] # sensing history, key = now()
     #l3: [] for l3 information, ex [1,20,number]
@@ -140,6 +142,8 @@ class Node():
                 self.sensing_his.append([now,self.sensing])
             if tid==11:
                 self.rssis[int(l3[2])] = int(l3[3])
+                self.rssis_his.append([datetime.now(),int(l3[2]),int(l3[3])])
+                
             #rssi handler, type=11
         
 
@@ -150,8 +154,9 @@ class Node():
         #desc sensor information
         for id in sorted(keys):
             txt +="\n\ttype[%i]=%s" %(id,self.tinfo[id])
-        sensing_str = "\n\tSensing:VISCNT=%s,LOGO=%s,LIGHT=%s,SOUND=%s,A_X=%s,A_Y=%s,A_Z=%s" % (self.sensing[IDX_VISCNT],self.sensing[IDX_LOGO],self.sensing[IDX_LIGHT],self.sensing[IDX_SOUND],self.sensing[IDX_A_X],self.sensing[IDX_A_Y],self.sensing[IDX_A_Z])
-        txt += sensing_str
+        if len(self.sensing)>0:
+            sensing_str = "\n\tSensing:VISCNT=%s,LOGO=%s,LIGHT=%s,SOUND=%s,A_X=%s,A_Y=%s,A_Z=%s" % (self.sensing[IDX_VISCNT],self.sensing[IDX_LOGO],self.sensing[IDX_LIGHT],self.sensing[IDX_SOUND],self.sensing[IDX_A_X],self.sensing[IDX_A_Y],self.sensing[IDX_A_Z])
+            txt += sensing_str
         #desc rssi, range information
         keys = self.rssis.keys()
         for id in sorted(keys):
@@ -168,6 +173,16 @@ class Node():
             sensing_str = "\nTIME=%s|NODE=%i,VISCNT=%s,LOGO=%s,LIGHT=%s,SOUND=%s,A_X=%s,A_Y=%s,A_Z=%s" % (v[0],self.id,sensing[IDX_VISCNT],sensing[IDX_LOGO],sensing[IDX_LIGHT],sensing[IDX_SOUND],sensing[IDX_A_X],sensing[IDX_A_Y],sensing[IDX_A_Z])
             txt += sensing_str
         return txt
+    def rssi_his_clear(self):
+        self.rssis_his = []
+
+    def desc_rssi_his(self):
+        txt = ""
+        for v in self.rssis_his:
+            rssi_str = "\nTIME=%s|NODE=%i,RID=%i,RSSI=%i" % (v[0],self.id,v[1],v[2])
+            txt += rssi_str
+        return txt
+
 # DM function
 class DM():
     def __init__(self):
@@ -545,6 +560,79 @@ class DmCli(cmd.Cmd):
 
                 
         plt.show()
+    def do_rssi_his(self,line):
+        """show per node rssi history 
+            rssi_his [node_id] #0: all, c: clear history
+        """
+        if line == "c":
+            for id in  dm.nodes.keys():
+                node = dm.nodes[id]
+                node.rssi_his_clear()
+            return 
+        if line.isnumeric():
+            id = int(line)
+        else:
+            return 
+        if id==0:
+            for id in  dm.nodes.keys():
+                node = dm.nodes[id]
+                print(node.desc_rssi_his())
+        elif id in dm.nodes.keys():    
+            node = dm.nodes[id]
+            print(node.desc_rssi_his())
+
+    def do_rssi_plot(self,line):
+        """plot rssi history
+            
+            1. plot one node with all rssi 
+                rssi_plot [id] 
+            2. plot all node with one node's rssi
+                rssi_plot 0 [rid]
+            3. plot all nodes
+                rssi_plot 0
+            4. plot one node with one rssi
+                rssi_plot [id] [rid]
+            
+        """
+        import matplotlib.pyplot as plt
+
+        cols = line.split()
+        if len(cols)==0:
+            return
+        id_input = int(cols[0])
+        #print("id_input = %i" %(id_input))
+        x_vals = []
+        v_y = []
+        keys = dm.nodes.keys()
+        if len(cols)>1:
+            rid = int(cols[1])
+            #print("need plot")
+            if id_input>0: # case 4
+                id = id_input
+                if id in sorted(keys):
+                    node = dm.nodes[id]
+                    rssis_his = node.rssis_his
+                
+                # plot this case
+                xi=0
+                for v in rssis_his: #[now, rid, rssi]
+                    if v[1]==rid:
+                        x_vals.append(xi)
+                        xi+=1
+                        v_y.append(v[2])
+                fig, axarr =plt.subplots(1,1,sharex=True,figsize=(20, 10))
+                axarr.plot(x_vals,v_y)
+                axarr.set_title("RSSI of Node %s from rid=%s" %(id, rid))
+                fig.canvas.set_window_title('Node %s' %(id))
+                
+            else: #case 2
+                pass
+                
+        else: #case 1,3
+            pass
+                
+        plt.show()
+
     def demo1(self,show_num):
         sid = dm.sid
         dids = dm.nodes.keys()

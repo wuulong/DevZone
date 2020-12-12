@@ -1,6 +1,6 @@
 # RobotBitNet Car
 # Licence: MIT
-# Limited memory coding style, doc in the same folder
+# Limited memory coding style, doc in the same folder 
 import radio as ro
 import utime as ut
 import random as rn
@@ -149,20 +149,23 @@ def find_used_ids():
     return used_ids
 
 def wait_start():
-    global uids,lid,joystick
+    global uids,lid,joystick,car_enabled
     go=0
     while True:
         if button_b.was_pressed():
-                joystick=1
-                di.show("J")
-                go=1                 
+            joystick=1
+            di.show("J")
+            go=1   
+        if pin_logo.is_touched():
+            di.show("E")
+            go = 1
         if button_a.was_pressed():
             go=1
-            di.show("F")
+            car_enabled=1
             i2c_init()
             move_motor_port(1,0)
             move_motor_port(2,0)
-            
+            di.show("C")
         if go==1:
             sleep(500)
             di.clear()
@@ -265,11 +268,12 @@ def rccar_rx(cmd):
 
 #car related
 joystick=0 # if used for joystick, will be at broker. press_b to enable
-ver = 2.0
+ver = 2.1
 
 init()
 cur_num_tx = 0
 ur=""
+car_enabled=0
 wait_start()
 tp = 1 #
 t_tick = int(tp * 1000000) #broadcast
@@ -278,8 +282,9 @@ t_tick = int(tp * 1000000) #broadcast
 rt=5
 send_tick = int(t_tick/rt) #send cmd
 t_l = ut.ticks_us()
-cidx=0
+
 lc = 1
+cmdc=0
 
 rssi=0
 rid=0
@@ -288,10 +293,18 @@ csid=1
 
 tidx=0
 
+c1idx=0
+c2idx=0
+c3idx=0
 #car
 px_cur = 0
 py_cur = 0
 trx_cnt = 0
+cid = 0 #car id
+selecting=0 #id selecting
+scid = 0 #selecting cid
+stop=0
+
 
 while True:
     #di.show("R")
@@ -322,11 +335,52 @@ while True:
                 cur_num_tx = cur_num_tx+1
             ackd = False
             if lu>0:
-                cidx %= lu
-                did = uids[cidx]
+                if button_b.was_pressed():
+                    if stop==0:
+                        txp(cid,23,str(5050))
+                        stop=1
+                    else:
+                        stop=0                
                 if joystick==1:
-                    rccar_tx(did)
-                cidx +=1
+                    c1idx %= lu
+                    did = uids[c1idx]
+                    c1idx +=1
+                    if not cid in uids:
+                        cid=0
+                    if cid==0:
+                        cid=did
+                    if stop==0:
+                        rccar_tx(cid)
+                    
+                if button_a.was_pressed():
+                    di.clear()
+
+                if cmdc % 2 ==0:
+                    c3idx %= lu
+                    did = uids[c3idx]
+                    c3idx +=1
+                    txp(did,10,lid)
+                    
+                if cmdc % 10 ==0:
+                    c2idx %= lu
+                    did = uids[c2idx]
+                    c2idx+=1
+                    if pin_logo.is_touched():
+                        selecting=1
+                        scid=did
+                        di.show(did)
+                        txp(did,20,did)
+                        
+                    else:
+                        if scid>0:
+                            if not pin_logo.is_touched():
+                                cid = scid
+                                scid=0
+                            
+                        pass
+
+                
+            cmdc+=1
                 
                     
 
@@ -378,7 +432,8 @@ while True:
                             csid = sid
                             rid = int(pvs[2])
                         if pvs[1]=="23": #rccar_rx
-                            rccar_rx(int(pvs[2]))
+                            if car_enabled:
+                                rccar_rx(int(pvs[2]))
                         if pvs[1]=="22":
                             di.show("G")
                             px_cmd = int(pvs[2])
@@ -389,9 +444,9 @@ while True:
 
                             value1 = go_value-percent
                             value2 = go_value+percent
-
-                            move_motor_port(1,value1)
-                            move_motor_port(2,value2)
+                            if car_enabled:
+                                move_motor_port(1,value1)
+                                move_motor_port(2,value2)
                 
                 if sid==rid:
                     if pvs[0]=="1":
