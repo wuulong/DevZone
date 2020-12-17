@@ -8,6 +8,7 @@ from microbit import display as di
 from microbit import button_a,button_b, i2c, compass, uart,accelerometer,microphone,sleep
 from microbit import pin_logo
 from microbit import *
+import neopixel
 
 
 import struct
@@ -122,6 +123,8 @@ def txp(did,ty,v):
         txt = "1,20,%s" %(v)
     elif ty==22:
         txt = "1,22,%i,%i" %(v[0],v[1])
+    elif ty==25:
+        txt = "1,25,%i,%i,%i,%i" %(did,v[0],v[1],v[2])
 
     else:
         txt = "1,%i,%s" %(ty,v)
@@ -304,7 +307,7 @@ def rccar_rx(cmd):
 
 #car related
 joystick=0 # if used for joystick, will be at broker. press_b to enable
-ver = 2.2
+ver = 2.3
 
 init()
 cur_num_tx = 0
@@ -332,6 +335,8 @@ tidx=0
 c1idx=0
 c2idx=0
 c3idx=0
+
+ctrl_mode=1 #0: 1 by 1 1: control all, 
 #car
 px_cur = 0
 py_cur = 0
@@ -341,7 +346,9 @@ selecting=0 #id selecting
 scid = 0 #selecting cid
 stop=0
 
+np = neopixel.NeoPixel(pin12, 8)
 
+    
 while True:
     #di.show("R")
     rxc = 0
@@ -373,7 +380,12 @@ while True:
             if lu>0:
                 if button_b.was_pressed():
                     if stop==0:
-                        txp(cid,23,str(5050))
+                        if ctrl_mode==1:
+                            ccid=0
+                        else:
+                            ccid=cid
+                        txp(ccid,23,str(5050)) #cid
+                            
                         stop=1
                     else:
                         stop=0                
@@ -386,10 +398,15 @@ while True:
                     if cid==0:
                         cid=did
                     if stop==0:
-                        rccar_tx(cid)
+                        if ctrl_mode==1:
+                            ccid=0
+                        else:
+                            ccid=cid
+                        rccar_tx(ccid) #cid
                     
                 if button_a.was_pressed():
-                    di.clear()
+                    #di.clear()
+                    ctrl_mode  ^=1
 
                 if cmdc % 2 ==0:
                     c3idx %= lu
@@ -407,14 +424,15 @@ while True:
                         di.show(did)
                         txp(did,20,did)
                         
+                        
                     else:
                         if scid>0:
                             if not pin_logo.is_touched():
                                 cid = scid
                                 scid=0
                                 stop=0
-                            
-                        pass
+                        txp(did,25,[0,0,60])    
+                        
 
                 
             cmdc+=1
@@ -461,7 +479,7 @@ while True:
                                 mid = 0
 
 
-                if did==lid:
+                if did==lid or did==0:
                     if pvs[0]=="1":
                         if pvs[1]=="20": #action
                             di.show(pvs[2])
@@ -471,19 +489,12 @@ while True:
                         if pvs[1]=="23": #rccar_rx
                             if car_enabled:
                                 rccar_rx(int(pvs[2]))
-                        if pvs[1]=="22":
-                            di.show("G")
-                            px_cmd = int(pvs[2])
-                            py_cmd = int(pvs[3])
+                        if pvs[1]=="25":
+                            led_id = int(pvs[2])
+                            np[led_id] = (int(pvs[3]),int(pvs[4]),int(pvs[5]))
+                            np.show()
+                
 
-                            go_value = -(py_cmd-50)*2
-                            percent = (px_cmd-50)
-
-                            value1 = go_value-percent
-                            value2 = go_value+percent
-                            if car_enabled:
-                                move_motor_port(1,value1)
-                                move_motor_port(2,value2)
                 
                 if sid==rid:
                     if pvs[0]=="1":
