@@ -31,7 +31,7 @@ import sys
 import cmd
 from datetime import datetime
 
-ser_name = '/dev/cu.usbmodem142402' #different environment may changed
+ser_name = '/dev/cu.usbmodem142302' #different environment may changed
 VERSION = "0.6.1"
 
 dm = None

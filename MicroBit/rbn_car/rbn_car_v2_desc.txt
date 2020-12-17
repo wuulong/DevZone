@@ -1,16 +1,17 @@
 #RobotBitNet Car and broker
 #Car Features:
 #	support RobotBitNet 
-#	support 10 pairs joystick-car 
+#	support 10 pairs joystick-car
 #	joystick,car,nocar nodes by button selection
 #	joystick can select car
 #	stop by button selection
+#Car: MoonCar
 #Usage:
 #   Button-A: car start
 #	Button-B: joystick mode start, usually at broker
-# 
+#   Logo: Node without car
 #Broker:
-#	the same with
+#	work with DM
 #LICENSE: MIT
 #Author: WuLung Hsu, wuulong@gmail.com
 #Document: https://paper.dropbox.com/doc/MbitBot--AWWwIfCnEicRuc7gSfO_tmcJAg-DG5SSj5zQhBv1CoAgDtAG
@@ -27,6 +28,8 @@
 #	joystick,car,nocar nodes by button selection
 #	joystick can select car
 #	stop by button selection
+# ver = 2.2
+#   MbitBot->MoonCar
 #code section: the following code always be replaced by code file, duplicate here for reference
 # RobotBitNet Car
 # Licence: MIT
@@ -37,6 +40,8 @@ import random as rn
 from microbit import display as di
 from microbit import button_a,button_b, i2c, compass, uart,accelerometer,microphone,sleep
 from microbit import pin_logo
+from microbit import *
+
 
 import struct
 
@@ -49,51 +54,63 @@ def mymap(x, in_min, in_max, out_min, out_max):
         value = out_min
 
     return value
-#board related
-def i2c_init():
-    import struct
 
-    buf1=struct.pack('>H', 16)
-    buf2=struct.pack('>H', 254 * 256 + 123)
-    buf3=struct.pack('>H', 0)
-    i2c.write(64, buf1)
-    i2c.write(64, buf2)
-    i2c.write(64, buf3)
+# MoonCar
+# F17 PASS: 馬達
+def move_motor(num1,num2,num3,num4):
+    pin2.write_analog(num1)
+    pin8.write_analog(num2)
+    pin13.write_analog(num3)
+    pin14.write_analog(num4)
 
-def motor(Spin, Speed):
-    TM1 = int(Speed % 256)
-    TM2 = int(Speed / 256)
-    CH = (Spin - 1) * 4 + 8
-    CH1 = int((CH <<8) + TM1)
-    CH2 = int(((CH + 1) <<8) + TM2)
-    i2c.write(64, struct.pack('>H', CH1))
-    i2c.write(64, struct.pack('>H', CH2))
-
-def move_motor_port(MPort, usevalue):
-    if(usevalue>100):
-        usevalue = 100
-    if(usevalue<-100):
-        usevalue = -100
-    dir=0
-    #MP2 may have bug
-    mpid = 13
-    if MPort==2:
-        usevalue=-usevalue
-        mpid = 15
-
-    if usevalue<0:
-        usevalue = -usevalue
-        dir=1
-
-    usevalue = mymap(usevalue, 0, 100, 0, 4095)
-
-    if dir==0:
-        motor(mpid, usevalue)
-        motor(mpid+1, 0)
+#move motor left,right: -100(back) -> 100(front)
+def move_motor_lr(l,r):
+    if l>=0:
+        n1 = abs(l)
+        n3=0
+        if n1>100:
+            n1=100
     else:
-        motor(mpid, 0)
-        motor(mpid+1, usevalue)
+        n3 = abs(l)
+        n1=0
+        if n3>=100:
+            n3=100
 
+    if r>=0:
+        n2 = abs(r)
+        n4=0
+        if n2>100:
+            n2=100
+    else:
+        n4 = abs(r)
+        n2=0
+        if n4>=100:
+            n4=100
+    n1 = int(mymap(n1,0,100,0,1023))
+    n2 = int(mymap(n2,0,100,0,1023))
+    n3 = int(mymap(n3,0,100,0,1023))
+    n4 = int(mymap(n4,0,100,0,1023))
+
+    move_motor(n1,n2,n3,n4)
+
+# 1: Forward, 2: Back, 3: Left, 4: Right, 5: Stop
+def moon_car_go(go_dir,movespeed):
+    if movespeed>100:
+        movespeed = 100
+    if movespeed < 0 :
+        movespeed = 0
+    movespeed = int(mymap(movespeed,0,100,0,1023))
+    
+    if go_dir == 1:
+        move_motor(movespeed, movespeed, 0, 0)
+    if go_dir == 2:
+        move_motor(0, 0, movespeed, movespeed)
+    if go_dir == 3:
+        move_motor(movespeed, 0, 0, movespeed)
+    if go_dir == 4:
+        move_motor(0, movespeed, movespeed, 0)
+    if go_dir == 5:
+        move_motor(0, 0, 0, 0)
 #communication
 
 lid = 0
@@ -192,9 +209,7 @@ def wait_start():
         if button_a.was_pressed():
             go=1
             car_enabled=1
-            i2c_init()
-            move_motor_port(1,0)
-            move_motor_port(2,0)
+            move_motor_lr(0,0)
             di.show("C")
         if go==1:
             sleep(500)
@@ -288,17 +303,41 @@ def rccar_rx(cmd):
     go_value = -(py_cmd-50)*2
     percent = (px_cmd-50)
 
-    value1 = go_value-percent
-    value2 = go_value+percent
-
-    move_motor_port(1,value1)
-    move_motor_port(2,value2)
+    go_value = -mymap(py_cmd, 0,99,-100,100)
+    percent = mymap(px_cmd, 0,99,-100,100)
+    
+    big = max(abs(go_value) , abs(percent))
+    
+    if big>100:
+        big =  100
+    if big<=-100:
+        big = -100
+    big_p = big*abs(percent)/100
+    
+    if go_value>0:
+        if percent>0:
+            r= big
+            l = big - 2* big_p
+        else:
+            l = big
+            r = big - 2*big_p
+    else:
+        if percent>0:
+            r= -big
+            l = -big + 2* big_p
+        else:
+            l = -big
+            r = - big + 2*big_p
+        
+    #print("x=%i,y=%i,go=%i,lr=%i,l=%i,r=%i" %(px_cmd,py_cmd,go_value,percent,l,r))
+    
+    move_motor_lr(int(l),int(r))
 
 
 
 #car related
 joystick=0 # if used for joystick, will be at broker. press_b to enable
-ver = 2.1
+ver = 2.2
 
 init()
 cur_num_tx = 0
@@ -406,6 +445,7 @@ while True:
                             if not pin_logo.is_touched():
                                 cid = scid
                                 scid=0
+                                stop=0
                             
                         pass
 
