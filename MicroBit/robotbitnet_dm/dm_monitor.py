@@ -30,9 +30,10 @@ import time
 import sys
 import cmd
 from datetime import datetime
+import random
 
 ser_name = '/dev/cu.usbmodem142302' #different environment may changed
-VERSION = "0.6.1"
+VERSION = "0.6.2"
 
 dm = None
 cli = None
@@ -93,6 +94,12 @@ def test_estimate():
             print("%f->%i"%(i,value))
         sleep(10000)
 
+def file_to_lines(pathname):
+    fo = open(pathname, "r")
+    #lines = fo.readlines()
+    lines = fo.read().splitlines()
+    fo.close()
+    return lines
 
 # V1 experience, V2 hardware seems different
 cal_cm=50
@@ -638,17 +645,124 @@ class DmCli(cmd.Cmd):
         dids = dm.nodes.keys()
         # send command here
         for did in dids:
-            th.serial_send("%i:%i:1,20,%i="%(sid,did,show_num)) 
+            if not sid==did:
+                th.serial_send("%i:%i:1,20,%i="%(sid,did,show_num)) 
             show_num+=1
-            #time.sleep(1)
-        
-    def do_demo1(self,line):
-        """Demo EP show number by sequence"""
+            time.sleep(0.5)
+
+    def demo2(self):
+        sid = dm.sid
+        dids = dm.nodes.keys()
+        # send command here
+        for did in dids:
+            if not sid==did:
+                txt_send = "%i:%i:1,25,%i,%i,%i,%i="%(sid,did,did,0,0,60)
+                th.serial_send(txt_send) 
+            #time.sleep(1)        
+    def do_demo(self,line):
+        """Current Demo : 
+            1. EP show number by sequence
+            2. Nodes show current ID's RGB LED with blue color
+            """
         self.wait_dm_ready()
-        show_num = 1         
+        show_num = 1 
         for i in range(5):
             self.demo1(show_num)            
             time.sleep(1)
+            show_num+=1
+        self.demo2()
+    def do_tx_cmd(self,line):
+        """Send RAW command by user request
+            ex: tx_cmd 1:3:1,20,3
+        """
+        self.wait_dm_ready()
+        txt_send = line
+        th.serial_send("%s=" %(txt_send)) 
+    def do_act(self,line):
+        """action command
+            act [act_id] 
+                act_id: 
+                1) All RGD LED off, 
+                2) random RGB
+                    act 2 [count]
+        """
+        act_id = line
+        cols = line.split()
+        if act_id=="1": #clear RGB LEDs
+            sid = dm.sid
+            dids = dm.nodes.keys()
+            # send command here
+            for did in dids:
+                if not sid==did:
+                    for led_id in range(8):
+                        th.serial_send("%i:%i:1,25,%i,0,0,0="%(sid,did,led_id))
+                        time.sleep(0.1) 
+        if cols[0]=="2": #random RGB
+            count = int(cols[1])
+            sid = dm.sid
+            dids =list(dm.nodes.keys())
+            for i in range(count):
+                did = random.choice(dids)
+                led_id=random.randint(0, 7)
+                r=random.randint(0, 255)
+                g=random.randint(0, 255)
+                b=random.randint(0, 255)
+                txt_send = "%i:%i:1,25,%i,%i,%i,%i="%(sid,did,led_id,r,g,b)
+                th.serial_send(txt_send)
+                time.sleep(0.5) 
+            # send command here
+            
+
+    def do_script(self,line):
+        """run script
+            script [filename]
+        """
+        filename = line
+        cmds = file_to_lines(filename)
+        try:
+            for cmd_str in cmds:
+                if not cmd_str.strip()=="":
+                    if not cmd_str=="#":
+                        now = datetime.now()
+                        print("%s:cmd=%s" %(now,cmd_str))
+                        cmd_cols = cmd_str.split(" ")
+                        str1 = " ".join(cmd_cols[1:])
+                        if cmd_cols[0]=="tx_cmd":
+                            self.do_tx_cmd(str1)
+                            time.sleep(0.1)
+                        if cmd_cols[0]=="sleep":
+                            time.sleep(int(str1)/1000)
+                        if cmd_cols[0]=="car_move":
+                            self.do_car_move(str1)
+                    
+        except:
+            print("exception! cmd=%s" %(cmd_str))
+
+    def do_car_move(self,line):
+        """car move command
+            car_move [did] [cmd] 
+                did: 0 for all
+                cmd format: 2-digit-num for left, right, 2-digit-num for power. number from 0-99  
+                example) 5050: stop, 5099: front, 5000: right, 9999, left: 0099
+            ex: car_move 2 9999
+        """
+        cols = line.split()
+        if len(cols)>=2:
+            did = int(cols[0])
+            cmd = int(cols[1])
+        else:
+            return
+        
+        sid = dm.sid
+        dids = dm.nodes.keys()
+        if did==0:
+            th.serial_send("%i:%i:1,23,%i=" %(sid,did,cmd))
+            
+        else:
+            if did in dids:
+                th.serial_send("%i:%i:1,23,%i=" %(sid,did,cmd))
+ 
+            
     def do_demo_rccar(self,line):
         """Demo rc car"""
         self.wait_dm_ready()       
