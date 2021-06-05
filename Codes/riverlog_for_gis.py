@@ -193,47 +193,117 @@ def minSum_range(start_str,end_str):
     df_save = df_all.sort_values(by='time')
     df_save.to_csv(filename,header=True,float_format="%.2f")
 
+def api_to_csv_range(start_str,end_str,api_id,pars,sort_col_name):
+    """
+        get api by date range. merge to 1 CSV
+    """
+    start_date = datetime.strptime(start_str, "%Y-%m-%d")
+    end_date = datetime.strptime(end_str, "%Y-%m-%d")
+
+    first_day = True
+    date_now = start_date
+    df_all = None
+    while True:
+        if date_now > end_date:
+            break
+        month = date_now.month
+        year = date_now.year
+        file_datestr = date_now.strftime("%Y-%m-%d")
+        df = api_to_csv(api_id,[file_datestr])
+        #df['datetime']="%s" %(date_now.strftime("%Y/%m/%d"))
+        if first_day:
+            df_all = df
+            first_day = False
+        else:
+            df_all = pd.concat([df_all,df])
+
+        date_now += timedelta(days=1)
+
+    filename = "output/%s_%s_%s.csv" %(api_id,start_str,end_str)
+    print("%s saved %s, shape = %s" %(api_id,filename, str(df_all.shape)))
+    df_save = df_all.sort_values(by=sort_col_name)
+
+
+    df_save.to_csv(filename,header=True,float_format="%.2f")
+    return filename
+
+
+def date_to_gmt8(date_str):
+    """
+        transfer date string to GMT+8
+        ex: 2021-05-31T16:00:00.000Z
+    """
+    #date object
+    date_obj = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S.000Z")
+
+    #+8 hour
+    hours_added = timedelta(hours = 8)
+    date_gmt8 = date_obj + hours_added
+    #output format
+    date_ret = date_gmt8.strftime("%Y-%m-%d %H:%M:%S")
+    return date_ret
+
+def csv_add_gmt8(file_src,col_name,file_dest):
+    """
+        add GMT8 time to CSV by re-format one column
+
+    """
+    df = pd.read_csv(file_src)
+    df[col_name + "GMT8"] = df[col_name].apply(date_to_gmt8)
+    df_save=df.drop(['Unnamed: 0'], axis=1)
+    df_save.to_csv(file_dest)
+    return df
 
 
 
-if 1: #get each api to CSV
-    api_to_csv("rain-dailySum",[2020])
-    api_to_csv("rain-10minSum",["2020-09-01"])
-    api_to_csv("rain-station",None)
-    api_to_csv("rain-rainData",["2020-09-01","23","24","121","122"])
-    api_to_csv("waterLevel-station",None)
-    api_to_csv("waterLevel-waterLevelData",["2020-09-01","23","24","121","122"])
-    api_to_csv("waterLevelDrain-station",None)
-    api_to_csv("waterLevelDrain-waterLevelDrainData",["2019-12-03","23","24","120","122"])
-    api_to_csv("waterLevelAgri-station",None)
-    api_to_csv("waterLevelAgri-waterLevelAgriData",["2019-12-03","23","24","120","122"])
-    api_to_csv("sewer-station",None)
-    api_to_csv("sewer-sewerData",["2019-12-02","24","25","121","122"])
-    api_to_csv("tide-station",None)
-    api_to_csv("tide-tideData",["2020-09-01","23","24","121","122"])
-    api_to_csv("pump-station",None)
-    api_to_csv("pump-pumpData",["2019-12-03","25","26","121","122"])
+
+
+case_id=1 # 0: first version, 1: reservoir data by date
+
+if case_id==0:
+    if 1: #get each api to CSV
+        api_to_csv("rain-dailySum",[2020])
+        api_to_csv("rain-10minSum",["2020-09-01"])
+        api_to_csv("rain-station",None)
+        api_to_csv("rain-rainData",["2020-09-01","23","24","121","122"])
+        api_to_csv("waterLevel-station",None)
+        api_to_csv("waterLevel-waterLevelData",["2020-09-01","23","24","121","122"])
+        api_to_csv("waterLevelDrain-station",None)
+        api_to_csv("waterLevelDrain-waterLevelDrainData",["2019-12-03","23","24","120","122"])
+        api_to_csv("waterLevelAgri-station",None)
+        api_to_csv("waterLevelAgri-waterLevelAgriData",["2019-12-03","23","24","120","122"])
+        api_to_csv("sewer-station",None)
+        api_to_csv("sewer-sewerData",["2019-12-02","24","25","121","122"])
+        api_to_csv("tide-station",None)
+        api_to_csv("tide-tideData",["2020-09-01","23","24","121","122"])
+        api_to_csv("pump-station",None)
+        api_to_csv("pump-pumpData",["2019-12-03","25","26","121","122"])
+        api_to_csv("reservoir-info",None)
+        api_to_csv("reservoir-reservoirData",["2020-09-01"])
+        api_to_csv("flood-station",None)
+        api_to_csv("flood-floodData",["2020-09-01"])
+        api_to_csv("alert-alertData",["2020-09-01"])
+        api_to_csv("alert-alertStatistic",[2020])
+        api_to_csv("alert-typhoonData",["2020-09-01"])
+        api_to_csv("elev-gridData",["7","23","24","120","121"])
+        api_to_csv("statistic-waterUseAgriculture",None)
+        api_to_csv("statistic-waterUseCultivation",None)
+        api_to_csv("statistic-waterUseLivestock",None)
+        api_to_csv("statistic-waterUseLiving",None)
+        api_to_csv("statistic-waterUseIndustry",None)
+        api_to_csv("statistic-waterUseOverview",None)
+        api_to_csv("statistic-monthWaterUse",None)
+        api_to_csv("statistic-reservoirUse",None)
+        api_to_csv("statistic-reservoirSiltation",None)
+
+    if 1: #process rain-dailySum,10minSum , predefined 3 area geo definition: areaGeo.csv
+        api_to_csv("rain-dailySum",[2020])
+        proc_Sum("areaGeo.csv","output/rain-dailySum_2020.csv","output/rain-dailySum_2020_row.csv","output/rain-dailySum_2020_geo.csv")
+
+        minSum_range("2020-10-01","2020-10-05")
+        proc_Sum("areaGeo.csv","output/rain-10minSum_2020-10-01_2020-10-05.csv","output/rain-10minSum_2020-10-01_2020-10-05_row.csv","output/rain-10minSum_2020-10-01_2020-10-05_geo.csv")
+
+if case_id==1:
     api_to_csv("reservoir-info",None)
-    api_to_csv("reservoir-reservoirData",["2020-09-01"])
-    api_to_csv("flood-station",None)
-    api_to_csv("flood-floodData",["2020-09-01"])
-    api_to_csv("alert-alertData",["2020-09-01"])
-    api_to_csv("alert-alertStatistic",[2020])
-    api_to_csv("alert-typhoonData",["2020-09-01"])
-    api_to_csv("elev-gridData",["7","23","24","120","121"])
-    api_to_csv("statistic-waterUseAgriculture",None)
-    api_to_csv("statistic-waterUseCultivation",None)
-    api_to_csv("statistic-waterUseLivestock",None)
-    api_to_csv("statistic-waterUseLiving",None)
-    api_to_csv("statistic-waterUseIndustry",None)
-    api_to_csv("statistic-waterUseOverview",None)
-    api_to_csv("statistic-monthWaterUse",None)
-    api_to_csv("statistic-reservoirUse",None)
-    api_to_csv("statistic-reservoirSiltation",None)
-
-if 1: #process rain-dailySum,10minSum , predefined 3 area geo definition: areaGeo.csv 
-    api_to_csv("rain-dailySum",[2020])
-    proc_Sum("areaGeo.csv","output/rain-dailySum_2020.csv","output/rain-dailySum_2020_row.csv","output/rain-dailySum_2020_geo.csv")
-     
-    minSum_range("2020-10-01","2020-10-05")
-    proc_Sum("areaGeo.csv","output/rain-10minSum_2020-10-01_2020-10-05.csv","output/rain-10minSum_2020-10-01_2020-10-05_row.csv","output/rain-10minSum_2020-10-01_2020-10-05_geo.csv")
+    filename=api_to_csv_range("2021-01-01","2021-06-05","reservoir-reservoirData",None,"ObservationTime")
+    csv_add_gmt8(filename,"ObservationTime","%s_GMT8.csv" %(filename[:-4]) )
