@@ -252,13 +252,13 @@ def csv_add_gmt8(file_src,col_name,file_dest):
     df[col_name + "GMT8"] = df[col_name].apply(date_to_gmt8)
     df_save=df.drop(['Unnamed: 0'], axis=1)
     df_save.to_csv(file_dest)
-    return df
+    return df_save
 
 
 
 
 
-case_id=1 # 0: first version, 1: reservoir data by date
+case_id=2 # 0: first version, 1: reservoir data by date, 2: for notebook debug
 
 if case_id==0:
     if 1: #get each api to CSV
