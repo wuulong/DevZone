@@ -13,12 +13,14 @@ from datetime import timedelta, datetime
 import time
 
 
-def url_get(filename,url):
+def url_get(filename,url,reload=False):
     """
         get url to file
     """
     #print("filename=%s,url=%s" %(filename,url))
-    if not os.path.isfile(filename):
+    if os.path.isfile(filename) and reload==False:
+        return
+    else:
         r = requests.get(url, params = {})
         open(filename, 'wb').write(r.content)
         
@@ -52,7 +54,7 @@ def load_json(filename,file_id):
 
     return pd.DataFrame(out, columns=cols)
 
-def api_to_csv(api_id,pars):
+def api_to_csv(api_id,pars,reload=False):
     """
         get api data and save to csv.
         api_id: api_path with '-' as delimiter
@@ -112,7 +114,7 @@ def api_to_csv(api_id,pars):
     cont = True
     while cont:
         filename = filename_prefix + ".json"
-        url_get(filename,url)
+        url_get(filename,url,reload)
         df = load_json(filename,api_id)
         if df is None:
             print("%s don't have data" %(api_id))
